@@ -2,6 +2,7 @@ import socket
 import struct
 from concurrent.futures import wait, Future, as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
+from functools import partial
 from itertools import chain
 from random import randint
 from sys import getsizeof
@@ -51,7 +52,7 @@ def recreate_p2p_topologies(fmc, api_pool, count=5):
 
     extranet_ips = get_random_ips(count)
 
-    execute_parallel_tasks([lambda idx=i: create_topology(fmc, ike_settings, extranet_ips.pop(), idx) for i in range(count)],
+    execute_parallel_tasks([partial(create_topology,fmc, ike_settings, extranet_ips.pop(), i) for i in range(count)],
                            api_pool)
 
 

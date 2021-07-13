@@ -1,5 +1,6 @@
 from collections import defaultdict
 from concurrent.futures.thread import ThreadPoolExecutor
+from functools import partial
 from threading import Thread
 from typing import Any
 
@@ -39,7 +40,7 @@ class FMCSession:
         if domain_id != self.fmc.uuid:
             self.fmc.uuid = domain_id
             self.fmc.domain = self.fmc.mytoken.__domain = self.domains[domain_id]
-            Thread(target=self.fetch_to_p2p_topologies).start()
+            Thread(target=self.fetch_p2p_topologies).start()
 
     def set_hub_device_id(self, device_id: str) -> None:
         """
@@ -113,10 +114,10 @@ class FMCSession:
         delete_p2p_topology_ids(self.orig_hns_p2p_topology_ids, self.fmc, self.api_pool)
         self.fmc.__exit__()
 
-    def fetch_to_p2p_topologies(self) -> None:
+    def fetch_p2p_topologies(self) -> None:
         s2s_topologies = FTDS2SVPNs(fmc=self.fmc).get()['items'][:self.max_topologies]
         future_to_endpoints_topology_map = {
-            self.api_pool.submit(lambda: get_topology_endpoints(self.fmc, topology)): topology
+            self.api_pool.submit(partial(get_topology_endpoints,self.fmc, topology)): topology
             for topology in s2s_topologies
             if topology["topologyType"] == "POINT_TO_POINT"
         }

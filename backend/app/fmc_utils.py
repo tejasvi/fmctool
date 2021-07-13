@@ -4,6 +4,7 @@ from concurrent.futures import as_completed
 from concurrent.futures._base import wait
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import deepcopy
+from functools import partial
 from typing import Any, Callable
 
 from fmcapi import FTDS2SVPNs, IKESettings, Endpoints, FMC
@@ -105,6 +106,7 @@ def get_hns_endpoint_data_from_p2p(p2p_topologies: dict[str, list[dict]], hub_de
                 else:
                     hns_endpoint["peerType"] = "SPOKE"
                 hns_endpoint["description"] = "desc"
+
                 hns_endpoint.pop("id")
                 endpoints_api = Endpoints(fmc=fmc, **hns_endpoint)
                 endpoints_api.vpn_policy(vpn_id=hns_topology_id)
@@ -122,7 +124,7 @@ def get_create_bulk_endpoints_url(fmc: FMC, hns_topology_id: str) -> str:
     return endpoints_api_bulk_url
 
 
-def set_endpoints_future(p2p_topologies: dict[str,list[dict]], hub_device_id: str, fmc: FMC, hns_topology_id: str,
+def set_endpoints_future(p2p_topologies: dict[str, list[dict]], hub_device_id: str, fmc: FMC, hns_topology_id: str,
                          p2p_topology_ids: list[str],
                          submit_future: Callable) -> list[dict]:
     created_endpoints = []
@@ -143,7 +145,7 @@ def fetch_to_device_p2p_topologies(futures: dict[str, list[Future]], p2p_topolog
                                    api_pool: ThreadPoolExecutor, fmc: FMC) -> None:
     futures["device_p2p_topologies"] = futures["p2p_topologies"]
     wait(futures["p2p_topologies"])
-    future_to_ike_settings = {api_pool.submit(lambda: get_topology_ike_settings(fmc, topology)): topology for topology
+    future_to_ike_settings = {api_pool.submit(partial(get_topology_ike_settings, fmc, topology)): topology for topology
                               in p2p_topologies[hub_device_id]}
     futures["device_p2p_topologies"][:] = future_to_ike_settings
     for i, future in enumerate(as_completed(future_to_ike_settings)):
@@ -164,5 +166,3 @@ def get_topologies_with_their_endpoints(future_to_endpoints_topology_map: dict[F
                 break
     fetched_p2p_topologies.default_factory = None
     return fetched_p2p_topologies
-
-
