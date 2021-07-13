@@ -1,0 +1,7 @@
+git+git://github.com/tejasvi/fmcapi.git
+fastapi[all]
+
+pydantic
+requests
+uvicorn
+starlette
