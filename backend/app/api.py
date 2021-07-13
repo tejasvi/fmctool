@@ -35,7 +35,7 @@ def get_domains(fmc_session: FMCSession = Depends(get_session)) -> dict[str, str
 
 @app.get("/devices")
 def get_devices(fmc_session: FMCSession = Depends(domain_param)) -> Any:
-    return fmc_session.get_devices()
+    return fmc_session.get_registered_devices()
 
 
 @app.get("/topologies", response_model=List[dict[str, Any]])

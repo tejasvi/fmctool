@@ -19,5 +19,5 @@ def domain_param(domain_id: str = Query(...), fmc_session: FMCSession = Depends(
 
 
 def device_domain_param(device_id: str = Query(...), fmc_session: FMCSession = Depends(domain_param)) -> FMCSession:
-    fmc_session.set_device_id(device_id)
+    fmc_session.set_hub_device_id(device_id)
     return fmc_session

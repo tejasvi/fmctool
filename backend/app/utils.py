@@ -156,6 +156,13 @@ def patch_dict(dict_item: dict, patch: dict) -> None:
 
 
 def get_task_callback_setup(executor: ThreadPoolExecutor) -> tuple[Callable, Callable[[], None]]:
+    """
+    - Create a task submitter closure which runs the task in thread-pool and associates it with optional callback.
+    - Create a trigger function to run the callback after each task finishes.
+
+    :param executor:
+    :return: Task submitter and trigger for callbacks.
+    """
     future_to_callback: dict[Future, AnyCallable] = {}
 
     def submit_task(task, *args, callback=lambda _: None, **kwargs):

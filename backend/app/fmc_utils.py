@@ -3,10 +3,9 @@ from concurrent.futures import Future
 from concurrent.futures import wait, as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import deepcopy
-from typing import Any, Callable, Union, cast
+from typing import Any, Callable
 
-from fmcapi import FTDS2SVPNs, IKESettings, Endpoints, AdvancedSettings, IPSecSettings, FMC
-from fmcapi.api_objects.apiclasstemplate import APIClassTemplate
+from fmcapi import FTDS2SVPNs, IKESettings, Endpoints, FMC
 from requests.models import PreparedRequest
 
 from app.utils import execute_parallel_tasks, patch_dict, get_post_data_chunks
@@ -28,16 +27,16 @@ def get_topologies_from_ids(p2p_topologies: dict[str, list[dict]], device_id: st
     return topologies
 
 
-def fetch_topology_settings(fmc: FMC, topology: dict, key_name: str, policy_service: APIClassTemplate) -> list[dict]:
+def fetch_topology_settings(fmc: FMC, topology: dict, key_name: str, policy_service) -> list[dict]:
     if "links" not in topology[key_name]:
         return topology[key_name]
-    settings = cast(Callable, policy_service)(fmc=fmc)
+    settings = policy_service(fmc=fmc)
     settings.vpn_policy(vpn_id=topology["id"])
     response = settings.get()["items"]
     return response
 
 
-def get_topology_ike_settings(fmc: FMC, topology: dict) -> list[dict]:
+def get_topology_ike_settings(fmc: FMC, topology: dict) -> dict:
     response = fetch_topology_settings(fmc, topology, "ikeSettings", IKESettings)
     assert len(response) == 1
     return response[0]
@@ -80,8 +79,8 @@ def get_ike_settings(fmc: FMC, hns_topology_id: str, topology_config: dict) -> d
 
 
 def post_topology_settings(fmc: FMC, topology_id: str, topology_config: dict, key_name: str,
-                           policy_service: Union[AdvancedSettings, IPSecSettings]) -> None:
-    settings_api = cast(Callable, policy_service)(fmc=fmc, **topology_config[key_name])
+                           policy_service) -> None:
+    settings_api = policy_service(fmc=fmc, **topology_config[key_name])
     settings_api.vpn_policy(vpn_id=topology_id)
     settings_api.post()
 
@@ -122,7 +121,7 @@ def get_create_bulk_endpoints_url(fmc: FMC, hns_topology_id: str) -> str:
     return endpoints_api_bulk_url
 
 
-def set_endpoints_future(p2p_topologies: list[dict], hub_device_id: str, fmc: FMC, hns_topology_id: str,
+def set_endpoints_future(p2p_topologies: dict[str,list[dict]], hub_device_id: str, fmc: FMC, hns_topology_id: str,
                          p2p_topology_ids: list[str],
                          submit_future: Callable) -> list[dict]:
     created_endpoints = []
@@ -133,16 +132,17 @@ def set_endpoints_future(p2p_topologies: list[dict], hub_device_id: str, fmc: FM
         def set_endpoints(endpoints_response):
             created_endpoints.extend(endpoints_response["items"])
 
-        submit_future(fmc.send_to_api, method="post", url=bulk_endpoints_api_url, json_data=chunk,
+        submit_future(lambda: fmc.send_to_api(method="post", url=bulk_endpoints_api_url, json_data=chunk),
                       callback=set_endpoints)
     return created_endpoints
 
 
-def fetch_to_device_p2p_topologies(futures: dict[str, list[Future]], p2p_topologies: list[dict], hub_device_id: str,
-                                   api_pool: ThreadPoolExecutor) -> None:
+def fetch_to_device_p2p_topologies(futures: dict[str, list[Future]], p2p_topologies: dict[str, list[dict]],
+                                   hub_device_id: str,
+                                   api_pool: ThreadPoolExecutor, fmc: FMC) -> None:
     futures["device_p2p_topologies"] = futures["p2p_topologies"]
     wait(futures["p2p_topologies"])
-    future_to_ike_settings = {api_pool.submit(get_topology_ike_settings, topology): topology for topology
+    future_to_ike_settings = {api_pool.submit(lambda: get_topology_ike_settings(fmc, topology)): topology for topology
                               in p2p_topologies[hub_device_id]}
     futures["device_p2p_topologies"][:] = future_to_ike_settings
     for i, future in enumerate(as_completed(future_to_ike_settings)):
@@ -155,7 +155,7 @@ def fetch_to_p2p_topologies(fmc: FMC, max_topologies: int, pending_futures, p2p_
                             api_pool: ThreadPoolExecutor) -> None:
     s2s_topologies = FTDS2SVPNs(fmc=fmc).get()['items'][:max_topologies]
     future_to_endpoints_topology_map = {
-        api_pool.submit(get_topology_endpoints, topology): topology
+        api_pool.submit(lambda: get_topology_endpoints(fmc, topology)): topology
         for topology in s2s_topologies
         if topology["topologyType"] == "POINT_TO_POINT"
     }

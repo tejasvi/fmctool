@@ -23,7 +23,7 @@ class FMCSession:
         self.fmc.__enter__()
         self.domains: dict[str, str] = {domain["uuid"]: domain["name"] for domain in self.fmc.mytoken.all_domain}
         self.fmc.uuid = None
-        self.device_id = None
+        self.hub_device_id = None
         self.api_pool = ThreadPoolExecutor(max_workers=8)  # max FMC conn 10
         self.max_topologies = 500
         self.pending_futures = defaultdict(list)
@@ -32,6 +32,11 @@ class FMCSession:
         self.p2p_topologies = None
 
     def set_domain(self, domain_id: str) -> None:
+        """
+        Set the domain UUID for the FMC session trigger fetching P2P topologies in background thread.
+
+        :param domain_id: Domain UUID
+        """
         if domain_id != self.fmc.uuid:
             self.fmc.uuid = domain_id
             self.fmc.domain = self.fmc.mytoken.__domain = self.domains[domain_id]
@@ -39,18 +44,31 @@ class FMCSession:
                    args=[self.fmc, self.max_topologies, self.pending_futures, self.p2p_topologies,
                          self.api_pool]).start()
 
-    def set_device_id(self, device_id: str):
-        if self.device_id != device_id:
-            self.device_id = device_id
-            fetch_to_device_p2p_topologies(self.pending_futures, self.p2p_topologies, self.device_id, self.api_pool)
+    def set_hub_device_id(self, device_id: str) -> None:
+        """
+        - Set the UUID of device used as hub.
+        - Trigger fetching IKE settings for the topologies containing that device in a background thread.
 
-    def get_devices(self) -> list[dict]:
+        :param device_id: Device UUID
+        """
+        if self.hub_device_id != device_id:
+            self.hub_device_id = device_id
+            fetch_to_device_p2p_topologies(self.pending_futures, self.p2p_topologies, self.hub_device_id, self.api_pool,
+                                           self.fmc)
+
+    def get_registered_devices(self) -> list[dict]:
         device_api_response = DeviceRecords(fmc=self.fmc).get()
         devices = device_api_response["items"]
         return devices
 
     def get_topology_conflicts(self, topology_ids: list[str]) -> dict[str, Any]:
-        topologies = get_topologies_from_ids(self.p2p_topologies, self.device_id, topology_ids)
+        """
+        Get the conflicting parameters among the topologies.
+
+        :param topology_ids: List of topology UUIDs.
+        :return: Parameters with the list of conflicting values. Data structures corresponds the GET ftds2svpns response.
+        """
+        topologies = get_topologies_from_ids(self.p2p_topologies, self.hub_device_id, topology_ids)
         ignored_keys = {"metadata", "id", "description", "links", "topologyType", "endpoints", "name"}
         conflicts = get_dict_diff(topologies, ignored_keys)
         return conflicts
@@ -65,7 +83,7 @@ class FMCSession:
             topology response.
         :return: Hub and spoke topology parameters corresponding to the GET `ftds2svpns` response
         """
-        base_hns_topology = get_base_hns_topology(self.p2p_topologies, self.device_id, override, topology_name)
+        base_hns_topology = get_base_hns_topology(self.p2p_topologies, self.hub_device_id, override, topology_name)
         hns_topology_api = get_topology_api(base_hns_topology, self.fmc)
         hns_topology_id = hns_topology_api.id
 
@@ -73,13 +91,13 @@ class FMCSession:
         created_ike_settings = get_ike_settings(self.fmc, hns_topology_id, base_hns_topology)
 
         submit_task, run_callbacks = get_task_callback_setup(self.api_pool)
-        created_endpoints = set_endpoints_future(self.p2p_topologies, self.device_id, self.fmc,
+        created_endpoints = set_endpoints_future(self.p2p_topologies, self.hub_device_id, self.fmc,
                                                  hns_topology_id, p2p_topology_ids,
                                                  submit_task)
-        submit_task(post_topology_settings, self.fmc, hns_topology_id, base_hns_topology, "ipsecSettings",
-                    IPSecSettings)
-        submit_task(post_topology_settings, self.fmc, hns_topology_id, base_hns_topology, "advancedSettings",
-                    AdvancedSettings)
+        submit_task(lambda: post_topology_settings(self.fmc, hns_topology_id, base_hns_topology, "ipsecSettings",
+                                                   IPSecSettings))
+        submit_task(lambda: post_topology_settings(self.fmc, hns_topology_id, base_hns_topology, "advancedSettings",
+                                                   AdvancedSettings))
         run_callbacks()
 
         self.hns_topology = hns_topology_api.get()
@@ -91,5 +109,9 @@ class FMCSession:
         return self.hns_topology
 
     def deploy(self):
+        """
+        Deploy the changes in the FMC configuration.
+        :return:
+        """
         delete_p2p_topology_ids(self.orig_hns_p2p_topology_ids, self.fmc, self.api_pool)
         self.fmc.__exit__()
