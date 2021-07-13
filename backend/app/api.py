@@ -7,13 +7,13 @@ from fmcapi.fmc import AuthenticationError
 from requests.exceptions import ConnectionError
 from sse_starlette.sse import EventSourceResponse
 
-from app.dependencies import get_session, domain_param, device_domain_param
+from app.api_utils import get_session, domain_dependency, device_domain_dependency, sessions, get_login_response, \
+    yield_when_task_done
 from app.fmc_session import FMCSession
 from app.models import Creds, LoginResponse
-from app.utils import enable_cors, get_login_response, yield_when_task_done
+from app.utils import enable_cors
 
 app = FastAPI()
-sessions = {}
 
 enable_cors(app)
 
@@ -34,30 +34,30 @@ def get_domains(fmc_session: FMCSession = Depends(get_session)) -> dict[str, str
 
 
 @app.get("/devices")
-def get_devices(fmc_session: FMCSession = Depends(domain_param)) -> Any:
+def get_devices(fmc_session: FMCSession = Depends(domain_dependency)) -> Any:
     return fmc_session.get_registered_devices()
 
 
 @app.get("/topologies", response_model=List[dict[str, Any]])
-def get_topologies(device_id: str = Query(...), fmc_session: FMCSession = Depends(device_domain_param)) -> list[dict]:
+def get_topologies(device_id: str = Query(...), fmc_session: FMCSession = Depends(device_domain_dependency)) -> list[dict]:
     return fmc_session.p2p_topologies[device_id]
 
 
 @app.post("/conflicts")
-def get_conflicts(fmc_session: FMCSession = Depends(device_domain_param),
+def get_conflicts(fmc_session: FMCSession = Depends(device_domain_dependency),
                   topology_ids: list[str] = Body(..., embed=True)) -> dict[str, Any]:
     return fmc_session.get_topology_conflicts(topology_ids)
 
 
 @app.post("/hns-topologies", response_model=List[dict])
-def create_hns_topologies(fmc_session: FMCSession = Depends(device_domain_param),
+def create_hns_topologies(fmc_session: FMCSession = Depends(device_domain_dependency),
                           override: Optional[dict[str, Any]] = Body(None),
                           p2p_topology_ids: list[str] = Body(..., embed=True)) -> list[dict]:
     return [fmc_session.create_hns_topology("HNS-" + token_urlsafe(2), p2p_topology_ids, override or {})]
 
 
 @app.post("/deploy")
-def deploy(fmc_session: FMCSession = Depends(domain_param)):
+def deploy(fmc_session: FMCSession = Depends(domain_dependency)):
     fmc_session.deploy()
 
 

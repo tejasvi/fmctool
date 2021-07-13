@@ -1,6 +1,7 @@
 from collections import defaultdict
 from concurrent.futures import Future
-from concurrent.futures import wait, as_completed
+from concurrent.futures import as_completed
+from concurrent.futures._base import wait
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import deepcopy
 from typing import Any, Callable
@@ -177,3 +178,5 @@ def get_topologies_with_their_endpoints(future_to_endpoints_topology_map: dict[F
                 break
     fetched_p2p_topologies.default_factory = None
     return fetched_p2p_topologies
+
+

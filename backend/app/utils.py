@@ -4,7 +4,6 @@ from concurrent.futures import wait, Future, as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 from itertools import chain
 from random import randint
-from secrets import token_urlsafe
 from sys import getsizeof
 from typing import Callable, Dict, Mapping, Union
 
@@ -13,9 +12,7 @@ from fmcapi import FTDS2SVPNs, IKESettings, Endpoints, FMC
 from pydantic.typing import AnyCallable
 from starlette.middleware.cors import CORSMiddleware
 
-from app.api import sessions
 from app.constants import BULK_POST_BYTE_LIMIT
-from app.fmc_session import FMCSession
 
 
 def delete_all_topologies(fmc: FMC, api_pool: ThreadPoolExecutor, p2p_only=False) -> None:
@@ -122,20 +119,6 @@ def enable_cors(app: FastAPI) -> None:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-
-def get_login_response(creds) -> dict[str, Union[str, list]]:
-    fmc_session = FMCSession(creds)
-    recreate_p2p_topologies(fmc_session.fmc, fmc_session.api_pool, 5)
-    token = token_urlsafe(32)
-    sessions[token] = fmc_session
-    return {"access_token": token, "token_type": "bearer", "domains": fmc_session.domains}
-
-
-def yield_when_task_done(task: str, fmc_session: FMCSession) -> dict[str, str]:
-    wait(fmc_session.pending_futures[task])
-    fmc_session.pending_futures.pop(task)
-    yield {"event": "ready", "data": ""}
 
 
 def execute_parallel_tasks(task_list: list[Callable], api_pool: ThreadPoolExecutor) -> None:

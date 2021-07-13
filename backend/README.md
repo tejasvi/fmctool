@@ -5,7 +5,7 @@
 ## Code structure
 * `main.py` starts the server.
 * `app/api.py` contains all the backend routes used by the client.
-    * `app/dependencies.py` contains the dependencies required by the backend API routes (e.g. auth token).
+    * `app/api_utils.py` contains the utility functions used by the routes.
     * `app/models.py` contains the _data models_ used by the routes.
 * `app/fmc_session.py` contains the class methods used by routes.
     * `app/fmc_utils.py` provides FMC specific utility functions.
