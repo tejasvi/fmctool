@@ -51,6 +51,7 @@ class FMCSession:
         """
         if self.hub_device_id != device_id:
             self.hub_device_id = device_id
+            assert self.p2p_topologies
             fetch_to_device_p2p_topologies(self.pending_futures, self.p2p_topologies, self.hub_device_id, self.api_pool,
                                            self.fmc)
 

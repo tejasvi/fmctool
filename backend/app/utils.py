@@ -9,7 +9,7 @@ from sys import getsizeof
 from typing import Callable, Dict, Mapping, Union
 
 from fastapi import FastAPI
-from fmcapi import FTDS2SVPNs, IKESettings, Endpoints, FMC
+from fmcapi import FTDS2SVPNs, IKESettings, Endpoints, FMC, AdvancedSettings
 from pydantic.typing import AnyCallable
 from starlette.middleware.cors import CORSMiddleware
 
@@ -32,36 +32,63 @@ def delete_all_topologies(fmc: FMC, api_pool: ThreadPoolExecutor, p2p_only=False
 def recreate_p2p_topologies(fmc, api_pool, count=5):
     delete_all_topologies(fmc, api_pool)
 
-    ike_settings = {
-        "authenticationType": "MANUAL_PRE_SHARED_KEY",
-        "enforceHexBasedPreSharedKeyOnly": False,
-        "manualPreSharedKey": "wq6l9cICT9y4r9rE",
-        "policies": [
-            {
-                "name": "DES-SHA-SHA-LATEST",
-                "id": "0050568C-4A4E-0ed3-0000-000000000404",
-                "type": "IKEv2Policy"
-            },
-            {
-                "name": "AES-SHA-SHA",
-                "id": "0050568C-4A4E-0ed3-0000-000000000401",
-                "type": "IKEv2Policy"
-            }
-        ]
-    }
-
     extranet_ips = get_random_ips(count)
 
-    execute_parallel_tasks([partial(create_topology,fmc, ike_settings, extranet_ips.pop(), i) for i in range(count)],
+    execute_parallel_tasks([partial(create_topology, fmc, extranet_ips.pop(), i) for i in range(count)],
                            api_pool)
 
 
-def create_topology(fmc, ike_settings: dict, extranet_ip: str,
-                    topology_idx: int) -> None:
-    topology_api = FTDS2SVPNs(fmc=fmc, name=f"p2p-topology-{topology_idx:03d}", topologyType="POINT_TO_POINT")
-    topology_api.post()
+def create_topology_advanced_settings(fmc, topology_api, object_id):
+    advanced_settings = {
+        "id": object_id,
+        "type": "AdvancedSettings",
+        "advancedTunnelSetting": {
+            "certificateMapSettings": {
+                "useCertMapConfiguredInEndpointToDetermineTunnel": False,
+                "useCertificateOuToDetermineTunnel": True,
+                "useIkeIdentityOuToDetermineTunnel": True,
+                "usePeerIpAddressToDetermineTunnel": True
+            },
+            "enableSpokeToSpokeConnectivityThroughHub": False,
+            "natKeepaliveMessageTraversal": {
+                "enabled": True,
+                "intervalSeconds": [20, 40][randint(0, 1)]
+            },
+            "bypassAccessControlTrafficForDecryptedTraffic": False
+        },
+        "advancedIpsecSetting": {
+            "maximumTransmissionUnitAging": {
+                "enabled": False
+            },
+            "enableFragmentationBeforeEncryption": True
+        },
+        "advancedIkeSetting": {
+            "ikeKeepaliveSettings": {
+                "ikeKeepalive": "ENABLED",
+                "threshold": 10,
+                "retryInterval": 2
+            },
+            "enableAggressiveMode": False,
+            "cookieChallenge": "CUSTOM",
+            "identitySentToPeer": "AUTO_OR_DN",
+            "peerIdentityValidation": "REQUIRED",
+            "thresholdToChallengeIncomingCookies": 50,
+            "percentageOfSAsAllowedInNegotiation": 100,
+            "enableNotificationOnTunnelDisconnect": False
+        }
+    }
+    advanced_settings_api = AdvancedSettings(fmc=fmc, **advanced_settings)
+    advanced_settings_api.vpn_policy(vpn_id=topology_api.id)
+    advanced_settings_api.put()
 
-    create_topology_ike_settings(fmc, ike_settings, topology_api)
+
+def create_topology(fmc, extranet_ip: str, topology_idx: int) -> None:
+    topology_api = FTDS2SVPNs(fmc=fmc, name=f"p2p-topology-{topology_idx:03d}", topologyType="POINT_TO_POINT")
+    topology = topology_api.post()
+
+    create_topology_advanced_settings(fmc, topology_api, topology["advancedSettings"]["id"])
+
+    create_topology_ike_settings(fmc, topology_api)
 
     create_p2p_topology_endpoint(fmc, extranet_ip, topology_api)
 
@@ -82,8 +109,11 @@ def create_p2p_topology_endpoint(fmc: FMC, extranet_ip: str, topology_api: FTDS2
         endpoints_api.post()
 
 
-def create_topology_ike_settings(fmc: FMC, ike_settings: dict, topology_api: FTDS2SVPNs):
-    ike_settings["manualPreSharedKey"] = ["Cisco@123-Collab", "Cisco@123-Switching"][randint(0, 1)]
+def create_topology_ike_settings(fmc: FMC, topology_api: FTDS2SVPNs):
+    ike_settings = {"authenticationType": "MANUAL_PRE_SHARED_KEY", "enforceHexBasedPreSharedKeyOnly": False,
+                    "manualPreSharedKey": ["Cisco@123-Collab", "Cisco@123-Switching"][randint(0, 1)], "policies": [
+            {"name": "DES-SHA-SHA-LATEST", "id": "0050568C-4A4E-0ed3-0000-000000000404", "type": "IKEv2Policy"}]}
+
     ike_settings_api = IKESettings(fmc=fmc, ikeV2Settings=ike_settings,
                                    id=getattr(topology_api, "ikeSettings")["id"])
     ike_settings_api.vpn_policy(vpn_id=topology_api.id)
