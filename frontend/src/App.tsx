@@ -134,7 +134,8 @@ function camelToTitleCase(camel: string) {
 
 
 
-const backendRoot = "https://technique-programming-try-registered.trycloudflare.com";
+const backendRoot = "http://127.0.0.1:8000";
+// const backendRoot = "https://technique-programming-try-registered.trycloudflare.com";
 
 // TODO: Write as component
 function getModal(title: JSX.Element, header?: JSX.Element, body?: JSX.Element, footer?: JSX.Element): JSX.Element {

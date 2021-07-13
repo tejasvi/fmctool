@@ -3,13 +3,12 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from threading import Thread
 from typing import Any
 
-from fmcapi import FMC, DeviceRecords, AdvancedSettings, IPSecSettings
+from fmcapi import FMC, DeviceRecords, AdvancedSettings, IPSecSettings, FTDS2SVPNs
 
 from app.constants import RATE_LIMIT_WAIT_SECONDS
 from app.fmc_utils import delete_p2p_topology_ids, get_topologies_from_ids, get_topology_api, \
     get_ike_settings, set_endpoints_future, get_base_hns_topology, fetch_to_device_p2p_topologies, \
-    fetch_to_p2p_topologies, \
-    post_topology_settings
+    post_topology_settings, get_topology_endpoints, get_topologies_with_their_endpoints
 from app.models import Creds
 from app.utils import get_task_callback_setup, get_dict_diff
 
@@ -40,9 +39,7 @@ class FMCSession:
         if domain_id != self.fmc.uuid:
             self.fmc.uuid = domain_id
             self.fmc.domain = self.fmc.mytoken.__domain = self.domains[domain_id]
-            Thread(target=fetch_to_p2p_topologies,
-                   args=[self.fmc, self.max_topologies, self.pending_futures, self.p2p_topologies,
-                         self.api_pool]).start()
+            Thread(target=self.fetch_to_p2p_topologies).start()
 
     def set_hub_device_id(self, device_id: str) -> None:
         """
@@ -116,4 +113,13 @@ class FMCSession:
         delete_p2p_topology_ids(self.orig_hns_p2p_topology_ids, self.fmc, self.api_pool)
         self.fmc.__exit__()
 
-
+    def fetch_to_p2p_topologies(self) -> None:
+        s2s_topologies = FTDS2SVPNs(fmc=self.fmc).get()['items'][:self.max_topologies]
+        future_to_endpoints_topology_map = {
+            self.api_pool.submit(lambda: get_topology_endpoints(self.fmc, topology)): topology
+            for topology in s2s_topologies
+            if topology["topologyType"] == "POINT_TO_POINT"
+        }
+        self.pending_futures["p2p_topologies"].extend(future_to_endpoints_topology_map)
+        fetched_p2p_topologies = get_topologies_with_their_endpoints(future_to_endpoints_topology_map)
+        self.p2p_topologies = fetched_p2p_topologies

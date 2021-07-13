@@ -96,7 +96,7 @@ def get_hns_endpoint_data_from_p2p(p2p_topologies: dict[str, list[dict]], hub_de
         if topology["id"] in p2p_topology_ids_set:
             for p2p_endpoint in topology["endpoints"]:
                 hns_endpoint = deepcopy(p2p_endpoint)
-                if hns_endpoint["device"]["id"] == hub_device_id and not hns_endpoint["extranet"]:
+                if not hns_endpoint["extranet"] and hns_endpoint["device"]["id"] == hub_device_id:
                     if is_hub_device_created:
                         continue
                     else:
@@ -150,20 +150,6 @@ def fetch_to_device_p2p_topologies(futures: dict[str, list[Future]], p2p_topolog
         print("Completed device p2p", i)
         topology = future_to_ike_settings[future]
         topology["ikeSettings"] = future.result()
-
-
-def fetch_to_p2p_topologies(fmc: FMC, max_topologies: int, pending_futures, p2p_topologies: dict[str, list[dict]],
-                            api_pool: ThreadPoolExecutor) -> None:
-    s2s_topologies = FTDS2SVPNs(fmc=fmc).get()['items'][:max_topologies]
-    future_to_endpoints_topology_map = {
-        api_pool.submit(lambda: get_topology_endpoints(fmc, topology)): topology
-        for topology in s2s_topologies
-        if topology["topologyType"] == "POINT_TO_POINT"
-    }
-    pending_futures["p2p_topologies"].extend(future_to_endpoints_topology_map)
-    fetched_p2p_topologies = get_topologies_with_their_endpoints(future_to_endpoints_topology_map)
-    p2p_topologies.clear()
-    p2p_topologies.update(fetched_p2p_topologies)
 
 
 def get_topologies_with_their_endpoints(future_to_endpoints_topology_map: dict[Future, dict]) -> dict[str, list[dict]]:

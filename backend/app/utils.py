@@ -51,7 +51,7 @@ def recreate_p2p_topologies(fmc, api_pool, count=5):
 
     extranet_ips = get_random_ips(count)
 
-    execute_parallel_tasks([lambda: create_topology(fmc, ike_settings, extranet_ips.pop(), i) for i in range(count)],
+    execute_parallel_tasks([lambda idx=i: create_topology(fmc, ike_settings, extranet_ips.pop(), idx) for i in range(count)],
                            api_pool)
 
 
@@ -103,6 +103,8 @@ def get_random_ips(count: int) -> set[str]:
 
 def enable_cors(app: FastAPI) -> None:
     origins = [
+        "http://localhost:3000",
+        "localhost:3000",
         "http://127.0.0.1:3000",
         "127.0.0.1:3000",
         "https://spectrum-stages-hills-galaxy.trycloudflare.com",
@@ -122,9 +124,7 @@ def enable_cors(app: FastAPI) -> None:
 
 
 def execute_parallel_tasks(task_list: list[Callable], api_pool: ThreadPoolExecutor) -> None:
-    futures_to_completion = []
-    futures_to_completion.extend([api_pool.submit(task) for task in task_list])
-    wait(futures_to_completion)
+    wait([api_pool.submit(task) for task in task_list])
 
 
 def patch_dict(dict_item: dict, patch: dict) -> None:
