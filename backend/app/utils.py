@@ -17,6 +17,13 @@ from app.constants import BULK_POST_BYTE_LIMIT
 
 
 def delete_all_topologies(fmc: FMC, api_pool: ThreadPoolExecutor, p2p_only=False) -> None:
+    """
+    Parallelly delete all topologies unless :p2p_only: specified.
+
+    :param fmc: FMC API object
+    :param api_pool: Thread pool used for sending requests
+    :param p2p_only: Delete only point-to-point topologies
+    """
     topology_api = FTDS2SVPNs(fmc=fmc)
     topology_api_resp = topology_api.get()
     delete_tasks = []
@@ -29,18 +36,32 @@ def delete_all_topologies(fmc: FMC, api_pool: ThreadPoolExecutor, p2p_only=False
     execute_parallel_tasks(delete_tasks, api_pool)
 
 
-def recreate_p2p_topologies(fmc, api_pool, count=5):
+def recreate_test_p2p_topologies(fmc, api_pool, count=5):
+    """
+    Delete all existing topologies and create point-to-point topologies.
+
+    :param fmc: FMC API object
+    :param api_pool: Thread pool used for sending requests
+    :param count: Number of P2P topologies created.
+    """
     delete_all_topologies(fmc, api_pool)
 
     extranet_ips = get_random_ips(count)
 
-    execute_parallel_tasks([partial(create_topology, fmc, extranet_ips.pop(), i) for i in range(count)],
+    execute_parallel_tasks([partial(create_p2p_topology, fmc, extranet_ips.pop(), f"p2p-topology-{i:03d}") for i in range(count)],
                            api_pool)
 
 
-def create_topology_advanced_settings(fmc, topology_api, object_id):
+def create_test_topology_advanced_settings(fmc, topology_api, advanced_settings_id):
+    """
+    Set specific advanced settings for the topology.
+
+    :param fmc: FMC API object
+    :param topology_api: Topology API object
+    :param advanced_settings_id: Advanced settings object ID
+    """
     advanced_settings = {
-        "id": object_id,
+        "id": advanced_settings_id,
         "type": "AdvancedSettings",
         "advancedTunnelSetting": {
             "certificateMapSettings": {
@@ -82,18 +103,32 @@ def create_topology_advanced_settings(fmc, topology_api, object_id):
     advanced_settings_api.put()
 
 
-def create_topology(fmc, extranet_ip: str, topology_idx: int) -> None:
-    topology_api = FTDS2SVPNs(fmc=fmc, name=f"p2p-topology-{topology_idx:03d}", topologyType="POINT_TO_POINT")
+def create_p2p_topology(fmc, extranet_ip: str, topology_name: str) -> None:
+    """
+    Create point-to-point topology with device and extranet endpoints.
+
+    :param fmc: FMC API object
+    :param extranet_ip: IP of the extranet endpoint
+    :param topology_name: Name of topology
+    """
+    topology_api = FTDS2SVPNs(fmc=fmc, name=topology_name, topologyType="POINT_TO_POINT")
     topology = topology_api.post()
 
-    create_topology_advanced_settings(fmc, topology_api, topology["advancedSettings"]["id"])
+    create_test_topology_advanced_settings(fmc, topology_api, topology["advancedSettings"]["id"])
 
     create_topology_ike_settings(fmc, topology_api)
 
-    create_p2p_topology_endpoint(fmc, extranet_ip, topology_api)
+    create_p2p_topology_endpoints(fmc, extranet_ip, topology_api)
 
 
-def create_p2p_topology_endpoint(fmc: FMC, extranet_ip: str, topology_api: FTDS2SVPNs) -> None:
+def create_p2p_topology_endpoints(fmc: FMC, extranet_ip: str, topology_api: FTDS2SVPNs) -> None:
+    """
+    Create device and extranet endpoints
+
+    :param fmc: FMC API object
+    :param extranet_ip: IP of the extranet endpoint
+    :param topology_api: Topology API object
+    """
     protected_networks = {
         "networks": [{"name": "10P2PObj", "id": "0050568C-4A4E-0ed3-0000-021474838306", "type": "Network"}]}
     ftd = {"peerType": "PEER",
@@ -121,6 +156,11 @@ def create_topology_ike_settings(fmc: FMC, topology_api: FTDS2SVPNs):
 
 
 def get_random_ips(count: int) -> set[str]:
+    """
+    Create set of random IPs (0.0.0.0 - 255.255.255.255)
+    :param count: Number of IPs
+    :return: IP set
+    """
     random_ips: set[str] = set()
     for _ in range(count):
         while True:
@@ -133,6 +173,11 @@ def get_random_ips(count: int) -> set[str]:
 
 
 def enable_cors(app: FastAPI) -> None:
+    """
+    Enable CORS for specific origins (clients).
+
+    :param app: Main FastAPI _app_
+    """
     origins = [
         "http://localhost:3000",
         "localhost:3000",
@@ -155,10 +200,23 @@ def enable_cors(app: FastAPI) -> None:
 
 
 def execute_parallel_tasks(task_list: list[Callable], api_pool: ThreadPoolExecutor) -> None:
+    """
+    Excute list of tasks in parallel and return on completion.
+
+    :param task_list: List of tasks (callables/functions/lambdas)
+    :param api_pool: Thread pool
+    :return:
+    """
     wait([api_pool.submit(task) for task in task_list])
 
 
 def patch_dict(dict_item: dict, patch: dict) -> None:
+    """
+    Update a nested dictionary based on values in overriding dictionary.
+
+    :param dict_item: Dictionary to be updated
+    :param patch: Overriding dictionary
+    """
     override_queue = [(patch, dict_item)]
     while override_queue:
         patch, orig = override_queue.pop()
@@ -191,6 +249,11 @@ def get_task_callback_setup(executor: ThreadPoolExecutor) -> tuple[Callable, Cal
 
 
 def get_post_data_chunks(data: list[dict]) -> list[dict]:
+    """
+    Generator function to split list of items into smaller lists to stay under limit.
+    :param data:
+    :return:
+    """
     while data:
         chunk = []
         while data and getsizeof(chunk) < BULK_POST_BYTE_LIMIT:
