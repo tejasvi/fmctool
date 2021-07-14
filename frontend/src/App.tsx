@@ -137,16 +137,16 @@ function camelToTitleCase(camel: string) {
 const backendRoot = "http://127.0.0.1:8000";
 // const backendRoot = "https://technique-programming-try-registered.trycloudflare.com";
 
-// TODO: Write as component
-function getModal(title: JSX.Element, header?: JSX.Element, body?: JSX.Element, footer?: JSX.Element): JSX.Element {
+
+function ModalWrapper(props: { title: JSX.Element, header?: JSX.Element, body?: JSX.Element, footer?: JSX.Element }): JSX.Element {
     return (
         <Modal.Dialog>
             <Modal.Header>
-                <Modal.Title>{title}</Modal.Title>
-                {header}
+                <Modal.Title>{props.title}</Modal.Title>
+                {props.header}
             </Modal.Header>
-            <Modal.Body>{body}</Modal.Body>
-            {footer ? <Modal.Footer>{footer}</Modal.Footer> : undefined}
+            <Modal.Body>{props.body}</Modal.Body>
+            {props.footer ? <Modal.Footer>{props.footer}</Modal.Footer> : undefined}
         </Modal.Dialog>
     )
 }
@@ -719,7 +719,7 @@ function App() {
     } else if (devices !== undefined) {
         return (
             <>
-                {getModal(<h1>Choose device</h1>, undefined, (
+                <ModalWrapper title={<h1>Choose device</h1>} body={(
                     <ListGroup>
                         {
                             devices.map((device) => (
@@ -731,13 +731,12 @@ function App() {
                             ))
                         }
                     </ListGroup>
-                ))}
+                )}/>
             </>
         )
     } else if (domains !== undefined) {
         return (
-            <>
-                {getModal(<h1>Choose domain</h1>, undefined, (
+            <ModalWrapper title={<h1>Choose domain</h1>} body={(
                     <ListGroup>
                         {Object.entries(domains).map(([id, name]) => (
                             <ListGroup.Item action onClick={() => {
@@ -747,8 +746,7 @@ function App() {
                             </ListGroup.Item>
                         ))}
                     </ListGroup>
-                ))}
-            </>
+            )}/>
         )
     } else if (token === undefined) {
         const host = "host";
@@ -758,7 +756,7 @@ function App() {
         return (
 
             <Form onSubmit={loginGetDomains}>
-                {getModal(<>Tool</>, undefined, (
+                <ModalWrapper title={<>Tool</>} body={(
                     <>
                         <Form.Group controlId={host}>
                             <Form.Label>FMC host</Form.Label>
@@ -787,11 +785,11 @@ function App() {
                             </Col>
                         </Row>
                     </>
-                ), (
+                )} footer={(
                     <Button variant="primary" type="submit" block>
                         Login
                     </Button>
-                ))}
+                )}/>
             </Form>
         )
     }
