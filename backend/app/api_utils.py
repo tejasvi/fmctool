@@ -31,7 +31,7 @@ def device_domain_dependency(device_id: str = Query(...), fmc_session: FMCSessio
 
 def get_login_response(creds) -> dict[str, Union[str, list]]:
     fmc_session = FMCSession(creds)
-    recreate_test_p2p_topologies(fmc_session.fmc, fmc_session.api_pool, 5)
+    # recreate_test_p2p_topologies(fmc_session.fmc, fmc_session.api_pool, 5)
     token = token_urlsafe(32)
     sessions[token] = fmc_session
     return {"access_token": token, "token_type": "bearer", "domains": fmc_session.domains}

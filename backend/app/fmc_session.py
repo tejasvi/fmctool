@@ -149,4 +149,4 @@ class FMCSession:
                 if not endpoint["extranet"]:
                     self.p2p_topologies[endpoint["device"]["id"]].append(topology)
             self.p2p_topologies.default_factory = None
-        self.hns_topologies = fetched_topologies["HUB_AND_SPOKE"]
+        self.hns_topologies = fetched_topologies["HUB_AND_SPOKE"] if "HUB_AND_SPOKE" in fetched_topologies else []

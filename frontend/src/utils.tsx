@@ -18,7 +18,8 @@ function progressRunner(secondsEstimate: number) {
 }
 
 function addEventListener(task: string, callback: () => void) {
-    let url = `${backendRoot}/status?` + new URLSearchParams({task: task, token: token});
+    if (auth.token === undefined) return;
+    let url = `${backendRoot}/status?` + new URLSearchParams({task: task, token: auth.token});
     const eventSource = new EventSource(url);
     console.log("Added eventsource");
     eventSource.addEventListener("ready", () => {
@@ -32,11 +33,11 @@ function addEventListener(task: string, callback: () => void) {
 function get(path: string, responseCallback: (responseData: any) => any, secondsEstimate: number, params: any = {}, task?: string): void {
     if (params.domainId === undefined) params.domain_id = domainState.domain;
     if (params.deviceId === undefined) params.device_id = deviceState.device;
-    const finishProgress = progressRunner(secondsEstimate);
     if (task !== undefined) {
         const tasklessArguments = Array.prototype.slice.call(arguments, 0, -1);
         addEventListener(task, get.bind(undefined, ...tasklessArguments));
     } else {
+        const finishProgress = progressRunner(secondsEstimate);
         axios.get(`${backendRoot}/${path}`, {
             params: params,
             headers: {"Authorization": `bearer ${auth.token}`}
@@ -48,14 +49,14 @@ function get(path: string, responseCallback: (responseData: any) => any, seconds
 }
 
 
-function post(path: string, responseCallback: (response: AxiosResponse) => any, secondsEstimate: number, body: Object = {}, params: any = {}): void {
+function post(path: string, responseCallback: (response: AxiosResponse) => any, secondsEstimate: number, body: Object = {}, params: any = {}, task?: string): void {
     if (params.domainId === undefined) params.domain_id = domainState.domain;
     if (params.deviceId === undefined) params.device_id = deviceState.device;
-    const finishProgress = progressRunner(secondsEstimate);
     if (task !== undefined) {
         const tasklessArguments = Array.prototype.slice.call(arguments, 0, -1);
         addEventListener(task, post.bind(undefined, ...tasklessArguments));
     } else {
+        const finishProgress = progressRunner(secondsEstimate);
         axios.post(`${backendRoot}/${path}`, body, {
             params: params,
             headers: {"Authorization": `bearer ${auth.token}`}

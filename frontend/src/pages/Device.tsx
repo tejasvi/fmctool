@@ -6,9 +6,9 @@ import {get} from "../utils";
 import P2pTopologies from "./P2pTopologies";
 
 function Device() {
-    const [devices, setDevices] = useState();
+    const [devices, setDevices] = useState<any[]>();
     useEffect(function getDevices() {
-        if (domains !== undefined) return;
+        if (devices !== undefined) return;
         get("devices", responseData => {
             console.log("Devices", responseData);
             setDevices(responseData);
@@ -18,10 +18,10 @@ function Device() {
         <ModalWrapper title={<h1>Choose device</h1>} body={(
             <ListGroup>
                 {
-                    devices && devices.map((device) => (
+                    (devices || []).map((device) => (
                         <ListGroup.Item action onClick={() => {
                             deviceState.device = device.id;
-                            pageState.setState(<P2pTopologies/>);
+                            pageState.setPage(<P2pTopologies/>);
                         }}>
                             {device.name}
                         </ListGroup.Item>

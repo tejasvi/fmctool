@@ -3,7 +3,7 @@ import Button from "react-bootstrap/Button";
 import {auth, backendRoot, pageState} from "../States";
 import {FormEvent} from "react";
 import axios from "axios";
-import {progressRunner} from "../utils";
+import {get, progressRunner} from "../utils";
 import {ModalWrapper} from "../Components";
 import Domain from "./Domain";
 
@@ -22,7 +22,8 @@ function getToken(e: FormEvent<HTMLFormElement>) {
         console.log("Token", response.data["access_token"], response.data["domain_names"]);
         auth.token = response.data["access_token"];
         // domainState.(response.data["domains"]);
-        pageState.setPage(<Domain/>)
+
+        pageState.setPage(<Topo)
     }).catch((reason) => {
         if (reason.response === undefined || reason.response.status === 404) {
             console.error("Could not connect to server.");
