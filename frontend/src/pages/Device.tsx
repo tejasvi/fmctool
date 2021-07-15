@@ -32,3 +32,4 @@ function Device() {
     )
 
 }
+export default Device;
