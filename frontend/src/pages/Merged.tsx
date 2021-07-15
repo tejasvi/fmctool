@@ -8,7 +8,8 @@ import {newTopologyState} from "../States";
 const mergedContext:{topology:any}= {topology:{}};
 
 function getHnsTopology(callback:any, p2pTopologyIds:string[], override:any) {
-    post("hns-topologies", responseData=>{
+    post("hns-topology", responseData=>{
+        mergedContext.topology = responseData;
         callback(responseData);
     }, 5, {p2p_topology_ids: p2pTopologyIds, override: override, hns_topology_id: newTopologyState.hnsTopologyId});
 }

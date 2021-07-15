@@ -30,7 +30,7 @@ function getConflicts(callback: any, topology_ids: string[]) {
         getHnsTopology(() => {
             pageState.setPage(<Merged/>);
         }, topology_ids, {});
-    }, 5);
+    }, 5, {topology_ids: topology_ids});
 }
 
 
