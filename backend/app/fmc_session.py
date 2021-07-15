@@ -9,14 +9,15 @@ from fmcapi import FMC, DeviceRecords, AdvancedSettings, IPSecSettings, FTDS2SVP
 from app.constants import RATE_LIMIT_WAIT_SECONDS
 from app.fmc_utils import delete_p2p_topology_ids, get_topologies_from_ids, get_topology_api, \
     get_ike_settings, set_endpoints_future, get_base_hns_topology, fetch_to_device_p2p_topologies, \
-    post_topology_settings, get_topology_endpoints, get_topologies_with_their_endpoints
+    post_topology_settings, get_topology_endpoints, get_topologies_with_their_endpoints, fetch_to_hns_p2p_topologies
 from app.models import Creds
 from app.utils import get_task_callback_setup, get_dict_diff
 
 
 class FMCSession:
     def __init__(self, creds: Creds):
-        self.fmc = FMC(host=creds.host, username=creds.username, password=creds.password, autodeploy=True,
+        host, username = creds.username.split(" ", 1)
+        self.fmc = FMC(host=host, username=username, password=creds.password, autodeploy=True,
                        file_logging="/tmp/log.txt", domain=None, debug=False, limit=1000, timeout=180,
                        check_server_version=False)
         self.fmc.TOO_MANY_CONNECTIONS_TIMEOUT = RATE_LIMIT_WAIT_SECONDS
@@ -24,23 +25,41 @@ class FMCSession:
         self.domains: dict[str, str] = {domain["uuid"]: domain["name"] for domain in self.fmc.mytoken.all_domain}
         self.fmc.uuid = None
         self.hub_device_id = None
+        self.hns_topology_id = None
         self.api_pool = ThreadPoolExecutor(max_workers=8)  # max FMC conn 10
         self.max_topologies = 500
         self.pending_futures = defaultdict(list)
         self.hns_topology = None
         self.orig_hns_p2p_topology_ids = None
         self.p2p_topologies = None
+        self.hns_topologies = None
+        self.hns_p2p_topologies = None
 
     def set_domain(self, domain_id: str) -> None:
         """
-        Set the domain UUID for the FMC session trigger fetching P2P topologies in background thread.
+        - Set the domain UUID for the FMC session
+        - trigger fetching P2P topologies in background thread.
 
         :param domain_id: Domain UUID
         """
         if domain_id != self.fmc.uuid:
             self.fmc.uuid = domain_id
             self.fmc.domain = self.fmc.mytoken.__domain = self.domains[domain_id]
-            Thread(target=self.fetch_p2p_topologies).start()
+            Thread(target=self.fetch_topologies).start()
+
+    def set_hns_topology_id(self, hns_topology_id: str) -> None:
+        """
+        - Set the UUID of HNS topology to merge into.
+        - Trigger fetching IKE settings for the p2p topologies containing HNS hub devices in a background thread.
+
+        :param hns_topology_id: HNS topology UUID
+        """
+        if self.hns_topology_id != hns_topology_id:
+            self.hns_topology_id = hns_topology_id
+            assert self.p2p_topologies
+            fetch_to_hns_p2p_topologies(self.pending_futures, self.p2p_topologies, self.hns_topologies[hns_topology_id],
+                                        self.api_pool,
+                                        self.fmc, self.hns_p2p_topologies)
 
     def set_hub_device_id(self, device_id: str) -> None:
         """
@@ -115,13 +134,19 @@ class FMCSession:
         delete_p2p_topology_ids(self.orig_hns_p2p_topology_ids, self.fmc, self.api_pool)
         self.fmc.__exit__()
 
-    def fetch_p2p_topologies(self) -> None:
+    def fetch_topologies(self) -> None:
         s2s_topologies = FTDS2SVPNs(fmc=self.fmc).get()['items'][:self.max_topologies]
         future_to_endpoints_topology_map = {
-            self.api_pool.submit(partial(get_topology_endpoints,self.fmc, topology)): topology
+            self.api_pool.submit(partial(get_topology_endpoints, self.fmc, topology)): topology
             for topology in s2s_topologies
-            if topology["topologyType"] == "POINT_TO_POINT"
         }
-        self.pending_futures["p2p_topologies"].extend(future_to_endpoints_topology_map)
-        fetched_p2p_topologies = get_topologies_with_their_endpoints(future_to_endpoints_topology_map)
-        self.p2p_topologies = fetched_p2p_topologies
+        self.pending_futures["topologies"].extend(future_to_endpoints_topology_map)
+        fetched_topologies = get_topologies_with_their_endpoints(future_to_endpoints_topology_map)
+        p2p_topologies = fetched_topologies["POINT_TO_POINT"]
+        self.p2p_topologies = defaultdict(list)
+        for topology in p2p_topologies:
+            for endpoint in topology["endpoints"]:
+                if not endpoint["extranet"]:
+                    self.p2p_topologies[endpoint["device"]["id"]].append(topology)
+            self.p2p_topologies.default_factory = None
+        self.hns_topologies = fetched_topologies["HUB_AND_SPOKE"]

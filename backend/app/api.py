@@ -3,6 +3,7 @@ from typing import Any, Optional, List, Union, Dict
 
 from fastapi import FastAPI, Body, HTTPException, Query
 from fastapi.param_functions import Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from fmcapi.fmc import AuthenticationError
 from requests.exceptions import ConnectionError
 from sse_starlette.sse import EventSourceResponse
@@ -10,7 +11,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.api_utils import get_session, domain_dependency, device_domain_dependency, sessions, get_login_response, \
     yield_when_task_done
 from app.fmc_session import FMCSession
-from app.models import Creds, LoginResponse
+from app.models import LoginResponse
 from app.utils import enable_cors
 
 app = FastAPI()
@@ -19,7 +20,7 @@ enable_cors(app)
 
 
 @app.post("/token", response_model=LoginResponse)
-def login(creds: Creds = Depends()) -> dict[str, Union[str, dict[str, str]]]:
+def login(creds: OAuth2PasswordRequestForm = Depends()) -> dict[str, Union[str, dict[str, str]]]:
     try:
         return get_login_response(creds)
     except ConnectionError:
@@ -38,8 +39,21 @@ def get_devices(fmc_session: FMCSession = Depends(domain_dependency)) -> Any:
     return fmc_session.get_registered_devices()
 
 
-@app.get("/topologies", response_model=List[dict[str, Any]])
-def get_topologies(device_id: str = Query(...), fmc_session: FMCSession = Depends(device_domain_dependency)) -> list[dict]:
+@app.get("/hns-topologies", response_model=List[dict[str, Any]])
+def get_topologies(fmc_session: FMCSession = Depends(device_domain_dependency)) -> list[
+    dict]:
+    return fmc_session.get_hns_topologies()
+
+
+@app.get("/hns-p2p-topologies", response_model=List[dict[str, Any]])
+def get_topologies(hns_topology_id: str = Query(...), fmc_session: FMCSession = Depends(device_domain_dependency)) -> \
+list[dict]:
+    return fmc_session.hns_p2p_topologies
+
+
+@app.get("/p2p-topologies", response_model=List[dict[str, Any]])
+def get_topologies(device_id: str = Query(...), fmc_session: FMCSession = Depends(device_domain_dependency)) -> list[
+    dict]:
     return fmc_session.p2p_topologies[device_id]
 
 

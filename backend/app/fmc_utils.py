@@ -143,8 +143,8 @@ def set_endpoints_future(p2p_topologies: dict[str, list[dict]], hub_device_id: s
 def fetch_to_device_p2p_topologies(futures: dict[str, list[Future]], p2p_topologies: dict[str, list[dict]],
                                    hub_device_id: str,
                                    api_pool: ThreadPoolExecutor, fmc: FMC) -> None:
-    futures["device_p2p_topologies"] = futures["p2p_topologies"]
-    wait(futures["p2p_topologies"])
+    futures["device_p2p_topologies"] = futures["topologies"]
+    wait(futures["topologies"])
     future_to_ike_settings = {api_pool.submit(partial(get_topology_ike_settings, fmc, topology)): topology for topology
                               in p2p_topologies[hub_device_id]}
     futures["device_p2p_topologies"][:] = future_to_ike_settings
@@ -154,15 +154,32 @@ def fetch_to_device_p2p_topologies(futures: dict[str, list[Future]], p2p_topolog
         topology["ikeSettings"] = future.result()
 
 
-def get_topologies_with_their_endpoints(future_to_endpoints_topology_map: dict[Future, dict]) -> dict[str, list[dict]]:
-    fetched_p2p_topologies = defaultdict(list)
+def get_topologies_with_their_endpoints(future_to_endpoints_topology_map: dict[Future, dict]) -> dict[
+    str, list]:
+    fetched_topologies = defaultdict(list)
     for i, future in enumerate(as_completed(future_to_endpoints_topology_map)):
         print("Completed ", i)
         topology = future_to_endpoints_topology_map[future]
         topology["endpoints"] = future.result()
-        for endpoint in topology["endpoints"]:
-            if not endpoint["extranet"]:
-                fetched_p2p_topologies[endpoint["device"]["id"]].append(topology)
-                break
-    fetched_p2p_topologies.default_factory = None
-    return fetched_p2p_topologies
+        topology_type = topology["topologyType"]
+        fetched_topologies[topology_type].append(topology)
+    fetched_topologies.default_factory = None
+    return fetched_topologies
+
+
+def fetch_to_hns_p2p_topologies(futures: dict[str, list[Future]], p2p_topologies: dict[str, list[dict]],
+                                hns_topology: dict,
+                                api_pool: ThreadPoolExecutor, fmc: FMC, hns_p2p_topologies: list[dict]) -> None:
+    futures["hns_p2p_topologies"] = futures["topologies"]
+    wait(futures["topologies"])
+    for endpoint in hns_topology["endpoints"]:
+        device_id = endpoint["device"]["id"]
+        if not endpoint["extranet"] and device_id in p2p_topologies:
+            hns_p2p_topologies.extend(p2p_topologies[device_id])
+    future_to_ike_settings = {api_pool.submit(partial(get_topology_ike_settings, fmc, topology)): topology for topology
+                              in hns_p2p_topologies + [hns_topology]}
+    futures["hns_p2p_topologies"][:] = future_to_ike_settings
+    for i, future in enumerate(as_completed(future_to_ike_settings)):
+        print("Completed hns p2p", i)
+        topology = future_to_ike_settings[future]
+        topology["ikeSettings"] = future.result()
