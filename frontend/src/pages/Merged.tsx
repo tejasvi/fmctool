@@ -1,15 +1,15 @@
 import {camelToTitleCase, Header, post, theme} from "../utils";
 import {Accordion, Card, Col, Container, Row} from "react-bootstrap";
 import JSONTree from "react-json-tree";
-import {deployTopology} from "./Deploy";
+import {Deploy, deployTopology} from "./Deploy";
 import {useState} from "react";
-import {newTopologyState} from "../States";
+import {newTopologyState, pageState} from "../States";
 
 const mergedContext:{topology:any}= {topology:{}};
 
 function getHnsTopology(callback:any, p2pTopologyIds:string[], override:any) {
     post("hns-topology", responseData=>{
-        mergedContext.topology = responseData;
+        mergedContext.topology = responseData[0];
         callback(responseData);
     }, 5, {p2p_topology_ids: p2pTopologyIds, override: override, hns_topology_id: newTopologyState.hnsTopologyId});
 }
@@ -20,7 +20,7 @@ function Merged() {
         <Container>
             <Row className="justify-content-md-center">
                 <Col className="justify-content-md-center">
-                    <Header onBack={()=>alert("back")} onNext={()=>deployTopology(()=>{})} header="Merged topology" nextVariant="success" nextString="Deploy"/>
+                    <Header onBack={()=>alert("back")} onNext={()=>window.confirm("Delete the point-to-point topologies and deploy the changes?") && deployTopology(()=>{pageState.setPage(<Deploy/>)})} header="Merged topology" nextVariant="success" nextString="Deploy"/>
                     <Accordion defaultActiveKey="0">
                         {[mergedContext.topology].map((topology, idx) => (
                             <Card>

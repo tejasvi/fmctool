@@ -36,7 +36,7 @@ def delete_all_topologies(fmc: FMC, api_pool: ThreadPoolExecutor, p2p_only=False
     execute_parallel_tasks(delete_tasks, api_pool)
 
 
-def recreate_test_p2p_topologies(fmc, api_pool, count=5):
+def recreate_test_p2p_topologies(fmc, api_pool, count=5, p2p_only=False):
     """
     Delete all existing topologies and create point-to-point topologies.
 
@@ -44,7 +44,7 @@ def recreate_test_p2p_topologies(fmc, api_pool, count=5):
     :param api_pool: Thread pool used for sending requests
     :param count: Number of P2P topologies created.
     """
-    delete_all_topologies(fmc, api_pool)
+    delete_all_topologies(fmc, api_pool, p2p_only)
 
     extranet_ips = get_random_ips(count)
 
