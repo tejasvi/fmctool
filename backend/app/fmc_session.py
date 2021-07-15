@@ -1,4 +1,5 @@
 from collections import defaultdict
+from concurrent.futures import wait
 from concurrent.futures.thread import ThreadPoolExecutor
 from functools import partial
 from threading import Thread
@@ -33,7 +34,7 @@ class FMCSession:
         self.orig_hns_p2p_topology_ids = None
         self.p2p_topologies = None
         self.hns_topologies = None
-        self.hns_p2p_topologies = None
+        self.hns_p2p_topologies = []
 
     def set_domain(self, domain_id: str) -> None:
         """
@@ -47,7 +48,7 @@ class FMCSession:
             self.fmc.domain = self.fmc.mytoken.__domain = self.domains[domain_id]
             Thread(target=self.fetch_topologies).start()
 
-    def set_hns_topology_id(self, hns_topology_id: str) -> None:
+    def set_hns_topology_id(self, hns_topology_id: str) -> list[dict]:
         """
         - Set the UUID of HNS topology to merge into.
         - Trigger fetching IKE settings for the p2p topologies containing HNS hub devices in a background thread.
@@ -57,9 +58,14 @@ class FMCSession:
         if self.hns_topology_id != hns_topology_id:
             self.hns_topology_id = hns_topology_id
             assert self.p2p_topologies
-            fetch_to_hns_p2p_topologies(self.pending_futures, self.p2p_topologies, self.hns_topologies[hns_topology_id],
+            t = {}
+            for t in self.hns_topologies:
+                if t["id"] == hns_topology_id:
+                    hns_topology = t
+            fetch_to_hns_p2p_topologies(self.pending_futures, self.p2p_topologies, hns_topology,
                                         self.api_pool,
                                         self.fmc, self.hns_p2p_topologies)
+        return self.hns_p2p_topologies
 
     def set_hub_device_id(self, device_id: str) -> None:
         """
@@ -86,12 +92,12 @@ class FMCSession:
         :param topology_ids: List of topology UUIDs.
         :return: Parameters with the list of conflicting values. Data structures corresponds the GET ftds2svpns response.
         """
-        topologies = get_topologies_from_ids(self.p2p_topologies, self.hub_device_id, topology_ids)
+        topologies = get_topologies_from_ids(self.p2p_topologies, self.hub_device_id, topology_ids, self.hns_p2p_topologies)
         ignored_keys = {"metadata", "id", "description", "links", "topologyType", "endpoints", "name"}
         conflicts = get_dict_diff(topologies, ignored_keys)
         return conflicts
 
-    def create_hns_topology(self, topology_name: str, p2p_topology_ids: list[str], override: dict[str, Any]) -> dict:
+    def create_hns_topology(self, topology_name: str, p2p_topology_ids: list[str], override: dict[str, Any], hns_topology_id: str) -> dict:
         """
         Create new Hub and Spoke topology on the device from Point to Point topologies.
 
@@ -135,7 +141,11 @@ class FMCSession:
         self.fmc.__exit__()
 
     def fetch_topologies(self) -> None:
-        s2s_topologies = FTDS2SVPNs(fmc=self.fmc).get()['items'][:self.max_topologies]
+        s2s_topologies = []
+        future = self.api_pool.submit(lambda: s2s_topologies.extend(FTDS2SVPNs(fmc=self.fmc).get()['items'][:self.max_topologies]))
+        self.pending_futures["topologies"].append(future)
+        wait(self.pending_futures["topologies"])
+        self.pending_futures["topologies"].clear()
         future_to_endpoints_topology_map = {
             self.api_pool.submit(partial(get_topology_endpoints, self.fmc, topology)): topology
             for topology in s2s_topologies

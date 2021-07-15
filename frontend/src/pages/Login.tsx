@@ -1,11 +1,10 @@
 import {Col, Form, Row} from "react-bootstrap";
 import Button from "react-bootstrap/Button";
-import {auth, backendRoot, pageState} from "../States";
+import {auth, pageState} from "../States";
 import {FormEvent} from "react";
-import axios from "axios";
-import {post, progressRunner} from "../utils";
+import {post} from "../utils";
 import {ModalWrapper} from "../Components";
-import Domain from "./Domain";
+import {getDomains,Domain} from "./Domain";
 
 function getToken(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -17,11 +16,10 @@ function getToken(e: FormEvent<HTMLFormElement>) {
     formData.append("grant_type", "password");
     console.log("Sent:", formData);
 
-    post("token", response => {
-        console.log("Token", response.data["access_token"], response.data["domain_names"]);
-        auth.token = response.data["access_token"];
-        // domainState.(response.data["domains"]);
-        pageState.setPage(<Domain/>)
+    post("token", responseData => {
+        auth.token = responseData["access_token"];
+        getDomains(()=>pageState.setPage(<Domain/>));
+
     }, 5, formData);
 }
 

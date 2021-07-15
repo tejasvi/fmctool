@@ -40,14 +40,16 @@ def get_devices(fmc_session: FMCSession = Depends(domain_dependency)) -> Any:
 
 
 @app.get("/hns-topologies", response_model=List[dict[str, Any]])
-def get_topologies(fmc_session: FMCSession = Depends(device_domain_dependency)) -> list[
+def get_topologies(fmc_session: FMCSession = Depends(domain_dependency)) -> list[
     dict]:
-    return fmc_session.get_hns_topologies()
+    fmc_session.fetch_topologies()
+    return fmc_session.hns_topologies
 
 
 @app.get("/hns-p2p-topologies", response_model=List[dict[str, Any]])
-def get_topologies(hns_topology_id: str = Query(...), fmc_session: FMCSession = Depends(device_domain_dependency)) -> \
+def get_topologies(hns_topology_id: str, fmc_session: FMCSession = Depends(domain_dependency)) -> \
 list[dict]:
+    fmc_session.set_hns_topology_id(hns_topology_id)
     return fmc_session.hns_p2p_topologies
 
 
@@ -58,16 +60,17 @@ def get_topologies(device_id: str = Query(...), fmc_session: FMCSession = Depend
 
 
 @app.post("/conflicts")
-def get_conflicts(fmc_session: FMCSession = Depends(device_domain_dependency),
+def get_conflicts(fmc_session: FMCSession = Depends(domain_dependency),
                   topology_ids: list[str] = Body(..., embed=True)) -> dict[str, Any]:
     return fmc_session.get_topology_conflicts(topology_ids)
 
 
-@app.post("/hns-topologies", response_model=List[dict])
-def create_hns_topologies(fmc_session: FMCSession = Depends(device_domain_dependency),
+@app.post("/hns-topology", response_model=List[dict])
+def create_hns_topologies(fmc_session: FMCSession = Depends(domain_dependency),
                           override: Optional[dict[str, Any]] = Body(None),
+                          hns_topology_id: Optional[str] = Body(None),
                           p2p_topology_ids: list[str] = Body(..., embed=True)) -> list[dict]:
-    return [fmc_session.create_hns_topology("HNS-" + token_urlsafe(2), p2p_topology_ids, override or {})]
+    return [fmc_session.create_hns_topology("HNS-" + token_urlsafe(2), p2p_topology_ids, override or {}, hns_topology_id)]
 
 
 @app.post("/deploy")

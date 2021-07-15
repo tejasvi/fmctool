@@ -1,22 +1,22 @@
 import {ModalWrapper} from "../Components";
 import {ListGroup} from "react-bootstrap";
 import {pageState} from "../States";
-import ExistingHnsTopologies from "./ExistingHnsTopologies";
-import Device, {getDevices} from "./Device"
+import {getHnsTopologies, ExistingHnsTopologies} from "./ExistingHnsTopologies";
+import {Device, getDevices} from "./Device"
 
 function TopologyChoice() {
     return (
         <ModalWrapper title={<h1>Hub and Spoke topology</h1>} body={(
             <ListGroup>
                 <ListGroup.Item action onClick={() => {
-                    getDevices(()=>pageState.setPage(<Device/>));
+                    getDevices(() => pageState.setPage(<Device/>));
                 }}>
-                    Create new
+                    <h3>Create new</h3>
                 </ListGroup.Item>
                 <ListGroup.Item action onClick={() => {
-                    pageState.setPage(<ExistingHnsTopologies/>);
+                    getHnsTopologies(()=>pageState.setPage(<ExistingHnsTopologies/>));
                 }}>
-                    Use Existing
+                    <h3>Use existing</h3>
                 </ListGroup.Item>
             </ListGroup>
         )}/>

@@ -1,5 +1,8 @@
 import {auth, backendRoot, deviceState, domainState, progressState} from "./States";
 import axios, {AxiosResponse} from "axios";
+import {ReactElement} from "react";
+import {Container, Navbar} from "react-bootstrap";
+import Button from "react-bootstrap/Button";
 
 function progressRunner(secondsEstimate: number) {
     if (progressState.setProgress === undefined) console.error("setProgress not set");
@@ -47,9 +50,92 @@ function get(path: string, responseCallback: (responseData: any) => any, seconds
             }).finally(finishProgress);
     }
 }
+function removeNonObjectNodes(object: {[key: string]: any}) {
+    for (const [key, value] of Object.entries(object)) {
+        if (typeof(value) === 'object' && !Array.isArray(value)) {
+            removeNonObjectNodes(value);
+        } else {
+            object[key] = undefined;
+        }
+    }
+}
+
+export const theme = {
+    scheme: 'bright',
+    author: 'chris kempson (http://chriskempson.com)',
+    base00: '#000000',
+    base01: '#303030',
+    base02: '#505050',
+    base03: '#000000',
+    base04: '#d0d0d0',
+    base05: '#e0e0e0',
+    base06: '#f5f5f5',
+    base07: '#ffffff',
+    base08: '#fb0120',
+    base09: '#fc6d24',
+    base0A: '#fda331',
+    base0B: '#a1c659',
+    base0C: '#76c7b7',
+    base0D: '#6fb3d2',
+    base0E: '#d381c3',
+    base0F: '#be643c',
+    arrowSign: {
+    },
+    arrowContainer: ({ style } : {style: any}) => ({
+        style: {
+            ...style,
+            display: "none",
+        }
+    }),
+    nestedNodeLabel: ({ style } : {style: any}, keyPath: any, nodeType: any, expanded: any, expandable: any) => ({
+        style: {
+            ...style,
+            fontWeight: expandable ? 'bold' : 'default',
+        },
+    }),
+    value: ({ style } : {style: any}, nodeType: any, keyPath: (string | number)[]) => ({
+        style: {
+            ...style,
+            marginLeft: keyPath.length > 1 ? '1.5em' : 0,
+            paddingLeft: 0,
+            textIndent:0,
+        },
+    }),
+    nestedNode: (
+        { style }: {style: any},
+        keyPath: (string | number)[],
+        nodeType: any,
+        expanded: any,
+        expandable:any
+    ) => ({
+        style: {
+            ...style,
+            marginLeft: keyPath.length > 1 ? '1.5em' : 0,
+            paddingLeft: 0,
+        },
+    }),
+};
 
 
-function post(path: string, responseCallback: (response: AxiosResponse) => any, secondsEstimate: number, body: Object = {}, params: any = {}, task?: string): void {
+export function camelToTitleCase(camel: string) {
+    const replacements = [
+        ["Id", "ID"],
+        ["Ike", "IKE"],
+        ["Ipsec", "IPsec"],
+        ["Tfc", "TFC"],
+        ["V2", "v2"],
+        ["V1", "v1"],
+        ["Sa", "SA"],
+        ["Icmp", "ICMP"],
+    ];
+    let title = camel.replace( /(?<![A-Z])([A-Z])/g, " $1" );
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+    title = replacements.reduce((str, [from, to])=> str.replace(from, to), title)
+    return title;
+}
+
+
+function post(path: string, responseCallback: (responseData:any) => any, secondsEstimate: number, body: Object = {}, params: any = {}, task?: string): void {
     if (params.domainId === undefined) params.domain_id = domainState.domain;
     if (params.deviceId === undefined) params.device_id = deviceState.device;
     if (task !== undefined) {
@@ -68,4 +154,62 @@ function post(path: string, responseCallback: (response: AxiosResponse) => any, 
 }
 
 
-export {progressRunner, get, post};
+function Header(props: {onBack?: ()=>any, onNext?: ()=>any, nextVariant?: string, nextString?: string, header?: string | ReactElement}) {
+    let back;
+    if (props.onBack !== undefined) {
+        back=(
+            <Navbar.Collapse className="justify-content-start">
+                <Button variant="primary" onClick={props.onBack}>Back</Button>
+            </Navbar.Collapse>
+        );
+    }
+    let next;
+    if (props.onNext !== undefined) {
+        next = (
+            <Navbar.Collapse className="justify-content-end">
+                <Button variant={props.nextVariant || "primary"} onClick={props.onNext}>{props.nextString || "Next"}</Button>
+            </Navbar.Collapse>
+        );
+    }
+    return (
+        <Navbar  bg="light" sticky="top" >
+            <Container>
+                {back}
+                <Navbar.Brand>
+                    <h1>{props.header}</h1>
+                </Navbar.Brand>
+                {next}
+            </Container>
+        </Navbar>
+    )
+}
+function getKeyPathValue(object: {[key: string]: any}, keyPath: (string|number)[]): unknown {
+    console.log("get", object, keyPath);
+    try {
+        for (let i = keyPath.length - 1; i >= 0; --i) {
+            object = object[keyPath[i]];
+        }
+    } catch (e) {
+        if (e instanceof TypeError) {
+            return undefined;
+        }
+        throw e;
+    }
+    return object;
+}
+
+function setKeyPathValue(object: any, keyPath: (string|number)[], value: any) {
+    console.log("set", object, keyPath, value);
+    for (let i = keyPath.length - 1; i > 0; --i) {
+        object = object[keyPath[i]];
+    }
+    object[keyPath[0]] = value;
+}
+
+function isListConflictNode(value: any) {
+    return Array.isArray(value) && value.length === 1;
+}
+
+
+
+export {progressRunner, get, post, removeNonObjectNodes, Header, getKeyPathValue, setKeyPathValue, isListConflictNode};

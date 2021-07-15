@@ -22,10 +22,13 @@ def delete_p2p_topology_ids(p2p_topology_ids: list[str], fmc: FMC, api_pool: Thr
     execute_parallel_tasks(delete_tasks, api_pool)
 
 
-def get_topologies_from_ids(p2p_topologies: dict[str, list[dict]], device_id: str, topology_ids: list[str]) -> list[
+def get_topologies_from_ids(p2p_topologies: dict[str, list[dict]], device_id: str, topology_ids: list[str], hns_p2p_topologies: list[dict]) -> list[
     dict]:
     tid_set = set(topology_ids)
-    topologies = [topology for topology in p2p_topologies[device_id] if topology["id"] in tid_set]
+    if device_id is None:
+        topologies = [topology for topology in hns_p2p_topologies if topology["id"] in tid_set]
+    else:
+        topologies = [topology for topology in p2p_topologies[device_id] if topology["id"] in tid_set]
     return topologies
 
 
@@ -173,9 +176,8 @@ def fetch_to_hns_p2p_topologies(futures: dict[str, list[Future]], p2p_topologies
     futures["hns_p2p_topologies"] = futures["topologies"]
     wait(futures["topologies"])
     for endpoint in hns_topology["endpoints"]:
-        device_id = endpoint["device"]["id"]
-        if not endpoint["extranet"] and device_id in p2p_topologies:
-            hns_p2p_topologies.extend(p2p_topologies[device_id])
+        if not endpoint["extranet"] and endpoint["device"]["id"] in p2p_topologies:
+            hns_p2p_topologies.extend(p2p_topologies[endpoint["device"]["id"]])
     future_to_ike_settings = {api_pool.submit(partial(get_topology_ike_settings, fmc, topology)): topology for topology
                               in hns_p2p_topologies + [hns_topology]}
     futures["hns_p2p_topologies"][:] = future_to_ike_settings

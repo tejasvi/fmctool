@@ -3,6 +3,7 @@ import {ReactElement, useState} from "react";
 import Login from "./pages/Login";
 import {Progress} from "./Components";
 import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.css';
 
 
 function App() {

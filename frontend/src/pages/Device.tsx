@@ -2,18 +2,17 @@ import {ListGroup} from "react-bootstrap";
 import {ModalWrapper} from "../Components";
 import {deviceState, pageState} from "../States";
 import {get} from "../utils";
-import P2pTopologies from "./P2pTopologies";
+import {getP2pTopologies, P2pTopologies} from "./P2pTopologies";
 
-const deviceContext: {devices: any[]} = {devices: []};
+const deviceContext: { devices: any[] } = {devices: []};
 
 function getDevices(callback: any) {
-    if (domains !== undefined) return;
     get("devices", responseData => {
         console.log("Devices", responseData);
         deviceContext.devices = responseData;
         callback();
     }, 5)
-};
+}
 
 function Device() {
     return (
@@ -23,7 +22,7 @@ function Device() {
                     deviceContext.devices.map((device) => (
                         <ListGroup.Item action onClick={() => {
                             deviceState.device = device.id;
-                            pageState.setPage(<P2pTopologies/>);
+                            getP2pTopologies(()=>pageState.setPage(<P2pTopologies/>));
                         }}>
                             {device.name}
                         </ListGroup.Item>
@@ -34,4 +33,5 @@ function Device() {
     )
 
 }
+
 export {getDevices, Device};
