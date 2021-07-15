@@ -3,7 +3,7 @@ import Button from "react-bootstrap/Button";
 import {auth, backendRoot, pageState} from "../States";
 import {FormEvent} from "react";
 import axios from "axios";
-import {progressRunner} from "../utils";
+import {post, progressRunner} from "../utils";
 import {ModalWrapper} from "../Components";
 import Domain from "./Domain";
 
@@ -17,19 +17,12 @@ function getToken(e: FormEvent<HTMLFormElement>) {
     formData.append("grant_type", "password");
     console.log("Sent:", formData);
 
-    const finishProgress = progressRunner(5);
-    axios.post(`${backendRoot}/token`, formData).then(response => {
+    post("token", response => {
         console.log("Token", response.data["access_token"], response.data["domain_names"]);
         auth.token = response.data["access_token"];
         // domainState.(response.data["domains"]);
         pageState.setPage(<Domain/>)
-    }).catch((reason) => {
-        if (reason.response === undefined || reason.response.status === 404) {
-            console.error("Could not connect to server.");
-        } else {
-            console.error("Unauthorized");
-        }
-    }).finally(finishProgress);
+    }, 5, formData);
 }
 
 function Login() {

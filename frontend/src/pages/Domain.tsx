@@ -5,20 +5,21 @@ import {get} from "../utils";
 import {domainState, pageState} from "../States";
 import TopologyChoice from "./TopologyChoice";
 
+const domainsContext:{domains: [string, string]} = {domains:[]};
+
+function getDomains(callback: any) {
+    get("domains", responseData => {
+        console.log("Devices", responseData);
+        domainsContext.domains = responseData;
+        callback();
+    }, 5)
+}
 
 function Domain() {
-    const [domains, setDomains] = useState<{ [key: string]: string }>();
-    useEffect(function getDomains() {
-        if (domains !== undefined) return;
-        get("domains", responseData => {
-            console.log("Devices", responseData);
-            setDomains(responseData);
-        }, 5)
-    },[]);
     return (
         <ModalWrapper title={<h1>Choose domain</h1>} body={(
             <ListGroup>
-                {domains && Object.entries(domains).map(([id, name]) => (
+                {Object.entries(domainsContext.domains).map(([id, name]) => (
                     <ListGroup.Item action onClick={() => {
                         domainState.domain = id;
                         pageState.setPage(<TopologyChoice/>);
