@@ -1,23 +1,25 @@
 import {ListGroup} from "react-bootstrap";
 import {ModalWrapper} from "../Components";
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useState} from "react";
 import {get} from "../utils";
 import {domainState, pageState} from "../States";
 import TopologyChoice from "./TopologyChoice";
 
-const useComponentWillMount = (func: any) => {
-    const willMount = useRef(true)
+const domainsContext:{domains: [string, string]} = {domains:[]};
 
-    if (willMount.current) func()
-
-    willMount.current = false
+function getDomains(callback: any) {
+    get("domains", responseData => {
+        console.log("Devices", responseData);
+        domainsContext.domains = responseData;
+        callback();
+    }, 5)
 }
 
-function Domain(props: {domains: any[]}) {
+function Domain() {
     return (
         <ModalWrapper title={<h1>Choose domain</h1>} body={(
             <ListGroup>
-                {Object.entries(props.domains).map(([id, name]) => (
+                {Object.entries(domainsContext.domains).map(([id, name]) => (
                     <ListGroup.Item action onClick={() => {
                         domainState.domain = id;
                         pageState.setPage(<TopologyChoice/>);
