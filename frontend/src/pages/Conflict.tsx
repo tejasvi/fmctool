@@ -25,6 +25,7 @@ function getConflicts(callback: any, topology_ids: string[]) {
         console.log("After None obj nodes", JSON.parse(JSON.stringify(override)));
         conflictsContext.override = override;
         for (const k in responseData) {
+                callback();
             return;
         }
         getHnsTopology(() => {
@@ -115,7 +116,7 @@ function Conflict() {
                                                          setOverride({...override});
                                                      }
                                                  }}
-                                                        style={{cursor: 'pointer'}}>{valueString.replace(/^"+|"+$/g, '')}
+                                                        style={{cursor: 'pointer'}}>{valueString.replace?.(/^"+|"+$/g, '') || valueString}
                                                  </Badge>
                                              )} hideRoot={true} collectionLimit={2} data={conflictsContext.conflicts}/>
                         </Card.Body>
