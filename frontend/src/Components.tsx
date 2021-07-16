@@ -15,10 +15,11 @@ function ModalWrapper(props: { title: JSX.Element, header?: JSX.Element, body?: 
         </Modal.Dialog>
     )
 }
-function Header(props: {onBack?: ()=>any, onNext?: ()=>any, nextVariant?: string, nextString?: string, header?: string | ReactElement}) {
+
+function Header(props: { onBack?: () => any, onNext?: () => any, nextVariant?: string, nextString?: string, header?: string | ReactElement }) {
     let back;
     if (props.onBack !== undefined) {
-        back=(
+        back = (
             <Navbar.Collapse className="justify-content-start">
                 <Button variant="primary" onClick={props.onBack}>Back</Button>
             </Navbar.Collapse>
@@ -28,12 +29,13 @@ function Header(props: {onBack?: ()=>any, onNext?: ()=>any, nextVariant?: string
     if (props.onNext !== undefined) {
         next = (
             <Navbar.Collapse className="justify-content-end">
-                <Button variant={props.nextVariant || "primary"} onClick={props.onNext}>{props.nextString || "Next"}</Button>
+                <Button variant={props.nextVariant || "primary"}
+                        onClick={props.onNext}>{props.nextString || "Next"}</Button>
             </Navbar.Collapse>
         );
     }
     return (
-        <Navbar  bg="light" sticky="top" >
+        <Navbar bg="light" sticky="top">
             <Container>
                 {back}
                 <Navbar.Brand>
@@ -44,6 +46,8 @@ function Header(props: {onBack?: ()=>any, onNext?: ()=>any, nextVariant?: string
         </Navbar>
     )
 }
+
+export {Header};
 
 
 export {ModalWrapper};

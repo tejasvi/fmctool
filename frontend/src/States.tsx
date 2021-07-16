@@ -55,9 +55,19 @@ interface newTopology {
     hnsTopologyId?: string;
 }
 
-const newTopologyState:newTopology = {};
+const newTopologyState: newTopology = {};
 
 const backendRoot = "http://127.0.0.1:8000";
 // const backendRoot = "https://technique-programming-try-registered.trycloudflare.com";
 
-export {backendRoot, pageState, auth, progressState, domainState, deviceState, filteredTopologiesState, overrideState, newTopologyState};
+export {
+    backendRoot,
+    pageState,
+    auth,
+    progressState,
+    domainState,
+    deviceState,
+    filteredTopologiesState,
+    overrideState,
+    newTopologyState
+};

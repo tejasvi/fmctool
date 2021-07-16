@@ -4,7 +4,7 @@ import {auth, pageState} from "../States";
 import {FormEvent} from "react";
 import {post} from "../utils";
 import {ModalWrapper} from "../Components";
-import {getDomains,Domain} from "./Domain";
+import {Domain, getDomains} from "./Domain";
 
 function getToken(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -18,7 +18,7 @@ function getToken(e: FormEvent<HTMLFormElement>) {
 
     post("token", responseData => {
         auth.token = responseData["access_token"];
-        getDomains(()=>pageState.setPage(<Domain/>));
+        getDomains(() => pageState.setPage(<Domain/>));
 
     }, 5, formData);
 }

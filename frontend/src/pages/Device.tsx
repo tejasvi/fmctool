@@ -22,7 +22,7 @@ function Device() {
                     deviceContext.devices.map((device) => (
                         <ListGroup.Item action onClick={() => {
                             deviceState.device = device.id;
-                            getP2pTopologies(()=>pageState.setPage(<P2pTopologies/>));
+                            getP2pTopologies(() => pageState.setPage(<P2pTopologies/>));
                         }}>
                             {device.name}
                         </ListGroup.Item>

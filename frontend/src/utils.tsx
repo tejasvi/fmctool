@@ -1,8 +1,5 @@
 import {auth, backendRoot, deviceState, domainState, progressState} from "./States";
-import axios, {AxiosResponse} from "axios";
-import {ReactElement} from "react";
-import {Container, Navbar} from "react-bootstrap";
-import Button from "react-bootstrap/Button";
+import axios from "axios";
 
 function progressRunner(secondsEstimate: number) {
     if (progressState.setProgress === undefined) console.error("setProgress not set");
@@ -47,12 +44,14 @@ function get(path: string, responseCallback: (responseData: any) => any, seconds
         }).then(response => responseCallback(response.data))
             .catch((reason) => {
                 console.error("Some error in GET", [reason]);
+                window.alert(`Some error in GET. Please check the backend logs.\n${reason}`);
             }).finally(finishProgress);
     }
 }
-function removeNonObjectNodes(object: {[key: string]: any}) {
+
+function removeNonObjectNodes(object: { [key: string]: any }) {
     for (const [key, value] of Object.entries(object)) {
-        if (typeof(value) === 'object' && !Array.isArray(value)) {
+        if (typeof (value) === 'object' && !Array.isArray(value)) {
             removeNonObjectNodes(value);
         } else {
             object[key] = undefined;
@@ -79,34 +78,33 @@ export const theme = {
     base0D: '#6fb3d2',
     base0E: '#d381c3',
     base0F: '#be643c',
-    arrowSign: {
-    },
-    arrowContainer: ({ style } : {style: any}) => ({
+    arrowSign: {},
+    arrowContainer: ({style}: { style: any }) => ({
         style: {
             ...style,
             display: "none",
         }
     }),
-    nestedNodeLabel: ({ style } : {style: any}, keyPath: any, nodeType: any, expanded: any, expandable: any) => ({
+    nestedNodeLabel: ({style}: { style: any }, keyPath: any, nodeType: any, expanded: any, expandable: any) => ({
         style: {
             ...style,
             fontWeight: expandable ? 'bold' : 'default',
         },
     }),
-    value: ({ style } : {style: any}, nodeType: any, keyPath: (string | number)[]) => ({
+    value: ({style}: { style: any }, nodeType: any, keyPath: (string | number)[]) => ({
         style: {
             ...style,
             marginLeft: keyPath.length > 1 ? '1.5em' : 0,
             paddingLeft: 0,
-            textIndent:0,
+            textIndent: 0,
         },
     }),
     nestedNode: (
-        { style }: {style: any},
+        {style}: { style: any },
         keyPath: (string | number)[],
         nodeType: any,
         expanded: any,
-        expandable:any
+        expandable: any
     ) => ({
         style: {
             ...style,
@@ -128,14 +126,14 @@ export function camelToTitleCase(camel: string) {
         ["Sa", "SA"],
         ["Icmp", "ICMP"],
     ];
-    let title = camel.replace( /(?<![A-Z])([A-Z])/g, " $1" );
+    let title = camel.replace(/(?<![A-Z])([A-Z])/g, " $1");
     title = title.charAt(0).toUpperCase() + title.slice(1);
-    title = replacements.reduce((str, [from, to])=> str.replace(from, to), title)
+    title = replacements.reduce((str, [from, to]) => str.replace(from, to), title)
     return title;
 }
 
 
-function post(path: string, responseCallback: (responseData:any) => any, secondsEstimate: number, body: Object = {}, params: any = {}, task?: string): void {
+function post(path: string, responseCallback: (responseData: any) => any, secondsEstimate: number, body: Object = {}, params: any = {}, task?: string): void {
     if (params.domainId === undefined) params.domain_id = domainState.domain;
     if (params.deviceId === undefined) params.device_id = deviceState.device;
     if (task !== undefined) {
@@ -149,41 +147,13 @@ function post(path: string, responseCallback: (responseData:any) => any, seconds
         }).then(response => responseCallback(response.data))
             .catch((reason) => {
                 console.error("Some error in POST", [reason]);
+                window.alert(`Some error in POST. Please check the backend logs.\n${reason}`);
             }).finally(finishProgress);
     }
 }
 
 
-function Header(props: {onBack?: ()=>any, onNext?: ()=>any, nextVariant?: string, nextString?: string, header?: string | ReactElement}) {
-    let back;
-    if (props.onBack !== undefined) {
-        back=(
-            <Navbar.Collapse className="justify-content-start">
-                <Button variant="primary" onClick={props.onBack}>Back</Button>
-            </Navbar.Collapse>
-        );
-    }
-    let next;
-    if (props.onNext !== undefined) {
-        next = (
-            <Navbar.Collapse className="justify-content-end">
-                <Button variant={props.nextVariant || "primary"} onClick={props.onNext}>{props.nextString || "Next"}</Button>
-            </Navbar.Collapse>
-        );
-    }
-    return (
-        <Navbar  bg="light" sticky="top" >
-            <Container>
-                {back}
-                <Navbar.Brand>
-                    <h1>{props.header}</h1>
-                </Navbar.Brand>
-                {next}
-            </Container>
-        </Navbar>
-    )
-}
-function getKeyPathValue(object: {[key: string]: any}, keyPath: (string|number)[]): unknown {
+function getKeyPathValue(object: { [key: string]: any }, keyPath: (string | number)[]): unknown {
     console.log("get", object, keyPath);
     try {
         for (let i = keyPath.length - 1; i >= 0; --i) {
@@ -198,7 +168,7 @@ function getKeyPathValue(object: {[key: string]: any}, keyPath: (string|number)[
     return object;
 }
 
-function setKeyPathValue(object: any, keyPath: (string|number)[], value: any) {
+function setKeyPathValue(object: any, keyPath: (string | number)[], value: any) {
     console.log("set", object, keyPath, value);
     for (let i = keyPath.length - 1; i > 0; --i) {
         object = object[keyPath[i]];
@@ -211,5 +181,4 @@ function isListConflictNode(value: any) {
 }
 
 
-
-export {progressRunner, get, post, removeNonObjectNodes, Header, getKeyPathValue, setKeyPathValue, isListConflictNode};
+export {progressRunner, get, post, removeNonObjectNodes, getKeyPathValue, setKeyPathValue, isListConflictNode};

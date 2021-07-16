@@ -1,6 +1,7 @@
 import {
     Accordion,
-    ButtonGroup, Card,
+    ButtonGroup,
+    Card,
     Col,
     Container,
     Dropdown,
@@ -18,14 +19,20 @@ import {camelToTitleCase, get, theme} from "../utils";
 import {filteredTopologiesState, newTopologyState, pageState} from "../States";
 import {Conflict, getConflicts} from "./Conflict";
 
-const p2pTopologiesContext: {topologies:any[]} = {topologies:[]};
+const p2pTopologiesContext: { topologies: any[] } = {topologies: []};
 
-function getHnsP2pTopologies(callback:any){
-    get("hns-p2p-topologies", (responseData)=>{p2pTopologiesContext.topologies=responseData;callback();}, 5, {hns_topology_id: newTopologyState.hnsTopologyId});
+function getHnsP2pTopologies(callback: any) {
+    get("hns-p2p-topologies", (responseData) => {
+        p2pTopologiesContext.topologies = responseData;
+        callback();
+    }, 5, {hns_topology_id: newTopologyState.hnsTopologyId});
 }
 
-function getP2pTopologies(callback:any){
-    get("p2p-topologies", (responseData)=>{p2pTopologiesContext.topologies=responseData;callback();}, 5);
+function getP2pTopologies(callback: any) {
+    get("p2p-topologies", (responseData) => {
+        p2pTopologiesContext.topologies = responseData;
+        callback();
+    }, 5);
 }
 
 interface Filter {
@@ -45,6 +52,7 @@ function P2pTopologies() {
     const [filters, setFilters] = useState<Filter[]>([getDefaultFilter()]);
 
     const topologies = p2pTopologiesContext.topologies;
+
     function getFilteredTopologies() {
         if (topologies === undefined) throw new Error("Topologies is undefined");
         const filteredTopologies = topologies.filter(topology => {
@@ -88,7 +96,11 @@ function P2pTopologies() {
                                 <h1>Filter topologies</h1>
                             </Navbar.Brand>
                             <Navbar.Collapse className="justify-content-end">
-                                <Button variant="primary" onClick={()=>{getConflicts(()=>{pageState.setPage(<Conflict/>)},filteredTopologiesState.id_list = getFilteredTopologies().map(t=>t.id)) } }>Next</Button>
+                                <Button variant="primary" onClick={() => {
+                                    getConflicts(() => {
+                                        pageState.setPage(<Conflict/>)
+                                    }, filteredTopologiesState.id_list = getFilteredTopologies().map(t => t.id))
+                                }}>Next</Button>
                             </Navbar.Collapse>
                         </Container>
                     </Navbar>

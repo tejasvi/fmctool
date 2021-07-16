@@ -1,46 +1,28 @@
-# Getting Started with Create React App
+## Dev setup
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+* Set `BACKEND_ROOT` to the host address of the backend server (usually `http://localhost:8000`).
+* `npm start` to run the app on [`http://localhost:3000`](http://localhost:3000). _Usually_ it auto-reloads on source file changes.
+* Compared to backend code, frontend code is less modular. Code folding will come handy.
 
-## Available Scripts
+## Libraries used
 
-In the project directory, you can run:
+* React as frontend framework. (CRA)
+* [React-Bootstrap](https://react-bootstrap.github.io/) for styled components.
+* [`react-json-tree`](https://github.com/reduxjs/redux-devtools/tree/master/packages/react-json-tree) for rendering JSON objects as trees.
 
-### `npm start`
+## Code Structure
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and, the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However, we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+* `src/App.tsx` contains the root component.
+* `src/App.css` contains app-wide styles.
+* Pages
+    * `src/pages/Login.tsx` page shows the login screen.
+    * `src/pages/Domain.tsx` page shows the available domains on FMC>
+    * `src/pages/TopologyChoice.tsx` page shows possiblity to create new topology or merge into an existing one.
+    * `src/pages/Device.tsx` page shows the device list to choose the hub device for new topology.
+    * `src/pages/ExistingHnsTopologies.tsx` page shows the existing hub-and-spoke topologies to merge into.
+    * `src/pages/P2pTopologies.tsx` page shows the point-to-point topologies with the filtering abilities.
+    * `src/pages/Conflict.tsx` page shows the point-to-point topology conflicts before merging.
+    * `src/pages/Merged.tsx` page shows the merged topology with and option to deploy.
+    * `src/pages/Deploy.tsx` page shows the deployment success screen.
+* `src/Components.tsx` contains the generic components.
+* `src/utils.tsx` contains the utility functions.

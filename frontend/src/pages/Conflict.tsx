@@ -1,7 +1,6 @@
 import {
     camelToTitleCase,
     getKeyPathValue,
-    Header,
     isListConflictNode,
     post,
     removeNonObjectNodes,
@@ -13,6 +12,7 @@ import JSONTree from "react-json-tree";
 import {MouseEvent, useState} from "react";
 import {getHnsTopology, Merged} from "./Merged";
 import {filteredTopologiesState, overrideState, pageState} from "../States";
+import {Header} from "../Components";
 
 const conflictsContext: { conflicts: any, override: any } = {conflicts: {}, override: {}};
 
@@ -25,7 +25,7 @@ function getConflicts(callback: any, topology_ids: string[]) {
         console.log("After None obj nodes", JSON.parse(JSON.stringify(override)));
         conflictsContext.override = override;
         for (const k in responseData) {
-                callback();
+            callback();
             return;
         }
         getHnsTopology(() => {
@@ -36,18 +36,18 @@ function getConflicts(callback: any, topology_ids: string[]) {
 
 
 function Conflict() {
-    const [override, setOverride] = useState<{[key: string]: any}>(conflictsContext.override);
+    const [override, setOverride] = useState<{ [key: string]: any }>(conflictsContext.override);
     return (
         <Container>
             <Row className="justify-content-md-center">
                 <Col className="justify-content-md-center">
                     {/* eslint-disable-next-line react/jsx-no-undef */}
                     <Header onBack={() => alert("back")} onNext={() => {
-                            conflictsContext.override = override;
-                            getHnsTopology(() => {
-                                pageState.setPage(<Merged/>);
-                            }, filteredTopologiesState.id_list as string[], overrideState.override)
-                        }
+                        conflictsContext.override = override;
+                        getHnsTopology(() => {
+                            pageState.setPage(<Merged/>);
+                        }, filteredTopologiesState.id_list as string[], overrideState.override)
+                    }
                     } header="Conflicts"
                             nextVariant="success"/>
                     <Card>

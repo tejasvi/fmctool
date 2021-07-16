@@ -31,4 +31,4 @@ function Domain() {
     )
 }
 
-export {getDomains,Domain};
+export {getDomains, Domain};
