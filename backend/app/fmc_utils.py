@@ -22,7 +22,8 @@ def delete_p2p_topology_ids(p2p_topology_ids: list[str], fmc: FMC, api_pool: Thr
     execute_parallel_tasks(delete_tasks, api_pool)
 
 
-def get_topologies_from_ids(p2p_topologies: dict[str, list[dict]], device_id: str, topology_ids: list[str], hns_p2p_topologies: list[dict]) -> list[
+def get_topologies_from_ids(p2p_topologies: dict[str, list[dict]], device_id: str, topology_ids: list[str],
+                            hns_p2p_topologies: list[dict]) -> list[
     dict]:
     tid_set = set(topology_ids)
     if device_id is None:
@@ -59,11 +60,17 @@ def get_topology_post_request_params(topology_config):
 
 
 def get_base_hns_topology(p2p_topologies: dict[str, list[dict]], hub_device_id: str, override: dict,
-                          topology_name: str) -> dict:
-    base_topology: dict = deepcopy(p2p_topologies[hub_device_id][0])
-    base_topology["name"] = topology_name
-    base_topology["topologyType"] = "HUB_AND_SPOKE"
-    base_topology.pop("id")
+                          topology_name: str, hns_topology_id: str, hns_topologies: list[dict]) -> dict:
+    if hns_topology_id is None:
+        base_topology: dict = deepcopy(p2p_topologies[hub_device_id][0])
+        base_topology["name"] = topology_name
+        base_topology.pop("id")
+        base_topology["topologyType"] = "HUB_AND_SPOKE"
+    else:
+        for topology in hns_topologies:
+            if topology["id"] == hns_topology_id:
+                base_topology: dict = deepcopy(topology)
+                break
     patch_dict(base_topology, override)
     return base_topology
 
@@ -92,14 +99,26 @@ def post_topology_settings(fmc: FMC, topology_id: str, topology_config: dict, ke
 
 def get_hns_endpoint_data_from_p2p(p2p_topologies: dict[str, list[dict]], hub_device_id: str, fmc: FMC,
                                    hns_topology_id: str,
-                                   p2p_topology_ids) -> list[dict]:
+                                   p2p_topology_ids: list[str], hns_p2p_topologies: list[dict], hns_topologies: list[dict]) -> list[dict]:
     is_hub_device_created = False
     p2p_topology_ids_set = set(p2p_topology_ids)
     endpoints_data = []
-    for topology in p2p_topologies[hub_device_id]:
+    existing_hns_hub_device_ids = set()
+    if hns_topology_id is None:
+        topology_list = p2p_topologies[hub_device_id]
+    else:
+        for topology in hns_topologies:
+            if topology["id"] == hns_topology_id:
+                existing_hns_hub_device_ids = {endpoint['device']['id'] for endpoint in topology["endpoints"]
+                                        if endpoint["peerType"] == 'HUB' and not endpoint['extranet']}
+                break
+        topology_list = hns_p2p_topologies
+    for topology in topology_list:
         if topology["id"] in p2p_topology_ids_set:
             for p2p_endpoint in topology["endpoints"]:
                 hns_endpoint = deepcopy(p2p_endpoint)
+                if hns_topology_id is not None and not hns_endpoint["extranet"] and hns_endpoint["device"]["id"] in existing_hns_hub_device_ids:
+                    continue
                 if not hns_endpoint["extranet"] and hns_endpoint["device"]["id"] == hub_device_id:
                     if is_hub_device_created:
                         continue
@@ -128,11 +147,11 @@ def get_create_bulk_endpoints_url(fmc: FMC, hns_topology_id: str) -> str:
 
 
 def set_endpoints_future(p2p_topologies: dict[str, list[dict]], hub_device_id: str, fmc: FMC, hns_topology_id: str,
-                         p2p_topology_ids: list[str],
+                         p2p_topology_ids: list[str], hns_p2p_topologies: list[dict], api_pool, hns_topologies,
                          submit_future: Callable) -> list[dict]:
     created_endpoints = []
     endpoints_data = get_hns_endpoint_data_from_p2p(p2p_topologies, hub_device_id, fmc, hns_topology_id,
-                                                    p2p_topology_ids)
+                                                    p2p_topology_ids, hns_p2p_topologies, hns_topologies)
     bulk_endpoints_api_url = get_create_bulk_endpoints_url(fmc, hns_topology_id)
     for chunk in get_post_data_chunks(endpoints_data):
         def set_endpoints(endpoints_response):

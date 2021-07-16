@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordBearer
 
 from app.fmc_session import FMCSession
-from app.utils import recreate_test_p2p_topologies
+from recreate import recreate_test_topologies
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

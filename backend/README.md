@@ -1,3 +1,9 @@
+## Dev setup
+* Python 3.9 required. Creating a corresponding Pipenv will be convenient.
+* Install dependencies using `pip -r requirements.txt`
+* For starting  or debugging, run `main.py`. The server will automatically reload on code modifications.
+* Execute `./recreate.py` to delete the existing topologies and recreate newer ones. Useful for testing.
+
 ## Libraries
 * [FastAPI](https://fastapi.tiangolo.com/tutorial/) is used to build the backend API.
 * [`fmcapi`](https://github.com/tejasvi/fmcapi) is used for making FMC API requests.

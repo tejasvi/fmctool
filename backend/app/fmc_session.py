@@ -3,6 +3,7 @@ from concurrent.futures import wait
 from concurrent.futures.thread import ThreadPoolExecutor
 from functools import partial
 from threading import Thread
+from time import sleep
 from typing import Any
 
 from fmcapi import FMC, DeviceRecords, AdvancedSettings, IPSecSettings, FTDS2SVPNs
@@ -58,10 +59,10 @@ class FMCSession:
         if self.hns_topology_id != hns_topology_id:
             self.hns_topology_id = hns_topology_id
             assert self.p2p_topologies
-            t = {}
-            for t in self.hns_topologies:
-                if t["id"] == hns_topology_id:
-                    hns_topology = t
+            for topology in self.hns_topologies:
+                if topology["id"] == hns_topology_id:
+                    hns_topology = topology
+                    break
             fetch_to_hns_p2p_topologies(self.pending_futures, self.p2p_topologies, hns_topology,
                                         self.api_pool,
                                         self.fmc, self.hns_p2p_topologies)
@@ -76,6 +77,7 @@ class FMCSession:
         """
         if self.hub_device_id != device_id:
             self.hub_device_id = device_id
+            wait(self.pending_futures["topologies"])
             assert self.p2p_topologies
             fetch_to_device_p2p_topologies(self.pending_futures, self.p2p_topologies, self.hub_device_id, self.api_pool,
                                            self.fmc)
@@ -107,7 +109,7 @@ class FMCSession:
             topology response.
         :return: Hub and spoke topology parameters corresponding to the GET `ftds2svpns` response
         """
-        base_hns_topology = get_base_hns_topology(self.p2p_topologies, self.hub_device_id, override, topology_name)
+        base_hns_topology = get_base_hns_topology(self.p2p_topologies, self.hub_device_id, override, topology_name, hns_topology_id, self.hns_topologies)
         hns_topology_api = get_topology_api(base_hns_topology, self.fmc)
         hns_topology_id = hns_topology_api.id
 
@@ -116,7 +118,7 @@ class FMCSession:
 
         submit_task, run_callbacks = get_task_callback_setup(self.api_pool)
         created_endpoints = set_endpoints_future(self.p2p_topologies, self.hub_device_id, self.fmc,
-                                                 hns_topology_id, p2p_topology_ids,
+                                                 hns_topology_id, p2p_topology_ids, self.hns_p2p_topologies, self.api_pool, self.hns_topologies,
                                                  submit_task)
         submit_task(lambda: post_topology_settings(self.fmc, hns_topology_id, base_hns_topology, "ipsecSettings",
                                                    IPSecSettings))
@@ -142,10 +144,13 @@ class FMCSession:
 
     def fetch_topologies(self) -> None:
         s2s_topologies = []
-        future = self.api_pool.submit(lambda: s2s_topologies.extend(FTDS2SVPNs(fmc=self.fmc).get()['items'][:self.max_topologies]))
-        self.pending_futures["topologies"].append(future)
-        wait(self.pending_futures["topologies"])
-        self.pending_futures["topologies"].clear()
+        stop_sleep = False
+        def sleep_forever():
+            while not stop_sleep:
+                sleep(1)
+        unending_future = ThreadPoolExecutor().submit(sleep_forever)
+        self.pending_futures["topologies"].append(unending_future)
+        s2s_topologies.extend(FTDS2SVPNs(fmc=self.fmc).get()['items'][:self.max_topologies])
         future_to_endpoints_topology_map = {
             self.api_pool.submit(partial(get_topology_endpoints, self.fmc, topology)): topology
             for topology in s2s_topologies
@@ -160,3 +165,6 @@ class FMCSession:
                     self.p2p_topologies[endpoint["device"]["id"]].append(topology)
             self.p2p_topologies.default_factory = None
         self.hns_topologies = fetched_topologies["HUB_AND_SPOKE"] if "HUB_AND_SPOKE" in fetched_topologies else []
+        self.pending_futures["topologies"].remove(unending_future)
+        stop_sleep = True
+
