@@ -1,7 +1,6 @@
 import {
     Accordion,
     ButtonGroup,
-    Card,
     Col,
     Container,
     Dropdown,
@@ -14,8 +13,7 @@ import {
 } from "react-bootstrap";
 import Button from "react-bootstrap/Button";
 import {FormEvent, useState} from "react";
-import JSONTree from "react-json-tree";
-import {camelToTitleCase, get, theme} from "../utils";
+import {camelToTitleCase, get, renderTopologyTree} from "../utils";
 import {filteredTopologiesState, newTopologyState, pageState} from "../States";
 import {Conflict, getConflicts} from "./Conflict";
 
@@ -55,7 +53,7 @@ function P2pTopologies() {
 
     function getFilteredTopologies() {
         if (topologies === undefined) throw new Error("Topologies is undefined");
-        const filteredTopologies = topologies.filter(topology => {
+        return topologies.filter(topology => {
             for (let idx = 0; idx < filters.length; ++idx) {
                 if (invalidFilters.has(idx)) continue;
                 const {keyPath, value} = filters[idx];
@@ -81,8 +79,7 @@ function P2pTopologies() {
                 }
             }
             return true;
-        })
-        return filteredTopologies;
+        });
     }
 
 
@@ -263,24 +260,7 @@ function P2pTopologies() {
                     ))}
                     <Accordion>
                         {getFilteredTopologies()
-                            .map((topology, idx) => (
-                                <Card>
-                                    <Accordion.Toggle as={Card.Header} eventKey={idx.toString()}
-                                                      onClick={() => setExpandedTopology(expandedTopology === idx ? undefined : idx)}>
-                                        {topology.name}<span
-                                        className="float-right">{expandedTopology === idx ? "▲" : "▼"}</span>
-                                    </Accordion.Toggle>
-                                    <Accordion.Collapse eventKey={idx.toString()}>
-                                        <Card.Body><JSONTree sortObjectKeys={true} theme={theme}
-                                                             getItemString={() => <></>}
-                                                             labelRenderer={([key], _nodeType, _expanded, expandable) => <>{camelToTitleCase(key.toString()) + (expandable ? " +" : "")}</>}
-                                                             valueRenderer={(raw) =>
-                                                                 <code>{typeof raw === 'string' ? raw.replace(/^"+|"+$/g, '') : raw}</code>}
-                                                             hideRoot={true} collectionLimit={2}
-                                                             data={topology}/></Card.Body>
-                                    </Accordion.Collapse>
-                                </Card>
-                            ))}
+                            .map(renderTopologyTree(setExpandedTopology, expandedTopology))}
                     </Accordion>
                 </Col>
             </Row>

@@ -1,5 +1,7 @@
 import {auth, backendRoot, deviceState, domainState, progressState} from "./States";
 import axios from "axios";
+import {Accordion, Card} from "react-bootstrap";
+import JSONTree from "react-json-tree";
 
 function progressRunner(secondsEstimate: number) {
     if (progressState.setProgress === undefined) console.error("setProgress not set");
@@ -61,7 +63,7 @@ function removeNonObjectNodes(object: { [key: string]: any }) {
 
 export const theme = {
     scheme: 'bright',
-    author: 'chris kempson (http://chriskempson.com)',
+    author: 'chris kempson (https://chriskempson.com)',
     base00: '#000000',
     base01: '#303030',
     base02: '#505050',
@@ -182,3 +184,23 @@ function isListConflictNode(value: any) {
 
 
 export {progressRunner, get, post, removeNonObjectNodes, getKeyPathValue, setKeyPathValue, isListConflictNode};
+
+export function renderTopologyTree(setExpandedTopology: (value: (((prevState: (number | undefined)) => (number | undefined)) | number | undefined)) => void, expandedTopology: number | undefined) {
+    return (topology: any, idx: number) => (
+        <Card>
+            <Accordion.Toggle as={Card.Header} eventKey={idx.toString()}
+                              onClick={() => setExpandedTopology(expandedTopology === idx ? undefined : idx)}>
+                {topology.name}<span
+                className="float-right">{expandedTopology === idx ? "▲" : "▼"}</span>
+            </Accordion.Toggle>
+            <Accordion.Collapse eventKey={idx.toString()}>
+                <Card.Body><JSONTree sortObjectKeys={true} theme={theme} getItemString={() => <></>}
+                                     labelRenderer={([key], _nodeType, _expanded, expandable) => <>{camelToTitleCase(key.toString()) + (expandable ? " +" : "")}</>}
+                                     valueRenderer={(raw) =>
+                                         <code>{typeof raw === 'string' ? raw.replace(/^"+|"+$/g, '') : raw}</code>}
+                                     hideRoot={true} collectionLimit={2}
+                                     data={topology}/></Card.Body>
+            </Accordion.Collapse>
+        </Card>
+    );
+}

@@ -185,24 +185,25 @@ def post_topology_settings(fmc: FMC, topology_id: str, topology_config: dict, ke
 
 def get_hns_endpoint_data_from_p2p(p2p_topologies: dict[str, list[dict]], hub_device_id: str, fmc: FMC,
                                    hns_topology_id: str,
-                                   p2p_topology_ids: list[str], hns_p2p_topologies: list[dict], hns_topologies: list[dict]) -> list[dict]:
+                                   p2p_topology_ids: list[str], hns_p2p_topologies: list[dict], hns_topologies: list[dict], new_topology: bool) -> list[dict]:
     """
     Get the FMC API request data for creating endpoints of HNS topology from the p2p topologies.
 
     :param p2p_topologies: The device id and p2p topology list map
     :param hub_device_id: The device of the hub of new topology
     :param fmc: The FMC API object
-    :param hns_topology_id: The ID of existing HNS topology to merge to (if provided)
+    :param hns_topology_id: The ID of HNS topology
     :param p2p_topology_ids: The P2P topology IDs being merged into new topology
     :param hns_p2p_topologies: The P2P topology IDs being merged into existing topology
     :param hns_topologies: List of hub and spoke topologies (needed if merging into existing one)
+    :param new_topology: Is creating new topology?
     :return: List of request objects for creating endpoints
     """
     is_hub_device_created = False
     p2p_topology_ids_set = set(p2p_topology_ids)
     endpoints_data = []
     existing_hns_hub_device_ids = set()
-    if hns_topology_id is None:
+    if new_topology:
         topology_list = p2p_topologies[hub_device_id]
     else:
         for topology in hns_topologies:
@@ -253,6 +254,7 @@ def get_create_bulk_endpoints_url(fmc: FMC, hns_topology_id: str) -> str:
 
 def set_endpoints_future(p2p_topologies: dict[str, list[dict]], hub_device_id: str, fmc: FMC, hns_topology_id: str,
                          p2p_topology_ids: list[str], hns_p2p_topologies: list[dict], api_pool, hns_topologies,
+                         new_topology: bool,
                          submit_future: Callable) -> list[dict]:
     """
     Creates the endpoints in parallel (and in bulk per connection). If HNS topology ID is specified (not None) it is assumed
@@ -269,11 +271,12 @@ def set_endpoints_future(p2p_topologies: dict[str, list[dict]], hub_device_id: s
     :param api_pool: Thread pool used to execute FMC API calls
     :param hns_topologies: List of HNS topologies
     :param submit_future: Runs a task in background and executes the supplied callback on completion
+    :param new_topology: Is new topology created?
     :return: List of endpoint responses on creation
     """
     created_endpoints = []
     endpoints_data = get_hns_endpoint_data_from_p2p(p2p_topologies, hub_device_id, fmc, hns_topology_id,
-                                                    p2p_topology_ids, hns_p2p_topologies, hns_topologies)
+                                                    p2p_topology_ids, hns_p2p_topologies, hns_topologies, new_topology)
     bulk_endpoints_api_url = get_create_bulk_endpoints_url(fmc, hns_topology_id)
     for chunk in get_post_data_chunks(endpoints_data):
         def set_endpoints(endpoints_response):

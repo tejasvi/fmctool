@@ -1,6 +1,5 @@
-import {camelToTitleCase, post, theme} from "../utils";
+import {post, renderTopologyTree} from "../utils";
 import {Accordion, Card, Col, Container, Row} from "react-bootstrap";
-import JSONTree from "react-json-tree";
 import {Deploy, deployTopology} from "./Deploy";
 import {useState} from "react";
 import {newTopologyState, pageState} from "../States";
@@ -26,23 +25,7 @@ function Merged() {
                                 pageState.setPage(<Deploy/>)
                             })} header="Merged topology" nextVariant="success" nextString="Deploy"/>
                     <Accordion defaultActiveKey="0">
-                        {[mergedContext.topology].map((topology, idx) => (
-                            <Card>
-                                <Accordion.Toggle as={Card.Header} eventKey={idx.toString()}
-                                                  onClick={() => setExpandedTopology(expandedTopology === idx ? undefined : idx)}>
-                                    {topology.name}<span
-                                    className="float-right">{expandedTopology === idx ? "▲" : "▼"}</span>
-                                </Accordion.Toggle>
-                                <Accordion.Collapse eventKey={idx.toString()}>
-                                    <Card.Body><JSONTree sortObjectKeys={true} theme={theme} getItemString={() => <></>}
-                                                         labelRenderer={([key], _nodeType, _expanded, expandable) => <>{camelToTitleCase(key.toString()) + (expandable ? " +" : "")}</>}
-                                                         valueRenderer={(raw) =>
-                                                             <code>{typeof raw === 'string' ? raw.replace(/^"+|"+$/g, '') : raw}</code>}
-                                                         hideRoot={true} collectionLimit={2}
-                                                         data={topology}/></Card.Body>
-                                </Accordion.Collapse>
-                            </Card>
-                        ))}
+                        {[mergedContext.topology].map(renderTopologyTree(setExpandedTopology, expandedTopology))}
                     </Accordion>
                     <Card>
                     </Card>

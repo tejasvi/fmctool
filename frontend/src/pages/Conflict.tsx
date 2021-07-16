@@ -24,7 +24,7 @@ function getConflicts(callback: any, topology_ids: string[]) {
         removeNonObjectNodes(override);
         console.log("After None obj nodes", JSON.parse(JSON.stringify(override)));
         conflictsContext.override = override;
-        for (const k in responseData) {
+        for (const _k in responseData) {
             callback();
             return;
         }

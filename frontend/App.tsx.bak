@@ -133,9 +133,8 @@ function camelToTitleCase(camel: string) {
 }
 
 
-
-const backendRoot = "http://127.0.0.1:8000";
-// const backendRoot = "https://technique-programming-try-registered.trycloudflare.com";
+const BACKEND_ROOT = "http://127.0.0.1:8000";
+// const BACKEND_ROOT = "https://technique-programming-try-registered.trycloudflare.com";
 
 
 function ModalWrapper(props: { title: JSX.Element, header?: JSX.Element, body?: JSX.Element, footer?: JSX.Element }): JSX.Element {
@@ -233,13 +232,13 @@ function AppBak() {
     function get(path: string, params: any = {}): Promise<AxiosResponse> {
         if (params.domainId === undefined) params.domain_id = domainId;
         if (params.deviceId === undefined) params.device_id = deviceId;
-        return axios.get(`${backendRoot}/${path}`, {params: params, headers: {"Authorization": `bearer ${token}`}});
+        return axios.get(`${BACKEND_ROOT}/${path}`, {params: params, headers: {"Authorization": `bearer ${token}`}});
     }
 
     function post(path: string, body: Object = {}, params: any = {}): Promise<AxiosResponse> {
         if (params.domainId === undefined) params.domain_id = domainId;
         if (params.deviceId === undefined) params.device_id = deviceId;
-        return axios.post(`${backendRoot}/${path}`, body, {
+        return axios.post(`${BACKEND_ROOT}/${path}`, body, {
             params: params,
             headers: {"Authorization": `bearer ${token}`}
         });
@@ -256,7 +255,7 @@ function AppBak() {
         formData.append("scope", host);
         formData.append("grant_type", "password");
         console.log("Sent:", formData);
-        axios.post(`${backendRoot}/token`, formData).then(response => {
+        axios.post(`${BACKEND_ROOT}/token`, formData).then(response => {
             console.log("Token", response.data["access_token"], response.data["domain_names"]);
             const token = response.data["access_token"];
             setToken(token);
@@ -302,7 +301,7 @@ function AppBak() {
         });
         console.log("Device ID: ", deviceId);
         if (token === undefined) throw new Error();
-        let url = `${backendRoot}/status?` + new URLSearchParams({task: "device_p2p_topologies", token: token});
+        let url = `${BACKEND_ROOT}/status?` + new URLSearchParams({task: "device_p2p_topologies", token: token});
         const eventSource = new EventSource(url);
         console.log("Added eventsource");
         eventSource.addEventListener("ready", ()=>{

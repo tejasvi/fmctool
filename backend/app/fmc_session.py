@@ -105,18 +105,18 @@ class FMCSession:
         conflicts = get_dict_diff(topologies, ignored_keys)
         return conflicts
 
-    def create_hns_topology(self, topology_name: str, p2p_topology_ids: list[str], override: dict[str, Any], hns_topology_id: str) -> dict:
+    def create_hns_topology(self, topology_name: str, p2p_topology_ids: list[str], override: dict[str, Any], existing_hns_topology_id: str) -> dict:
         """
         Create new Hub and Spoke topology on the device from Point to Point topologies if hns topology ID is not provided or merge into existing one.
 
-        :param hns_topology_id: HNS topology UUID
+        :param existing_hns_topology_id: Existing HNS topology UUID to merge into (None if new topology)
         :param topology_name: Name of topology if creating new one
         :param p2p_topology_ids: The UUID list of point to point topologies being merged.
         :param override: The overriding parameter values used for conflicts. Data structure corresponds to the GET
             topology response.
         :return: Hub and spoke topology parameters corresponding to the GET `ftds2svpns` response
         """
-        base_hns_topology = get_base_hns_topology(self.p2p_topologies, self.hub_device_id, override, topology_name, hns_topology_id, self.hns_topologies)
+        base_hns_topology = get_base_hns_topology(self.p2p_topologies, self.hub_device_id, override, topology_name, existing_hns_topology_id, self.hns_topologies)
         hns_topology_api = get_topology_api(base_hns_topology, self.fmc)
         hns_topology_id = hns_topology_api.id
 
@@ -126,6 +126,7 @@ class FMCSession:
         submit_task, run_callbacks = get_task_callback_setup(self.api_pool)
         created_endpoints = set_endpoints_future(self.p2p_topologies, self.hub_device_id, self.fmc,
                                                  hns_topology_id, p2p_topology_ids, self.hns_p2p_topologies, self.api_pool, self.hns_topologies,
+                                                 True if existing_hns_topology_id is None else False,
                                                  submit_task)
         submit_task(lambda: post_topology_settings(self.fmc, hns_topology_id, base_hns_topology, "ipsecSettings",
                                                    IPSecSettings))
