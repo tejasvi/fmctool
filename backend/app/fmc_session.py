@@ -6,18 +6,18 @@ from threading import Thread
 from time import sleep
 from typing import Any
 
+from fastapi.security import OAuth2PasswordRequestForm
 from fmcapi import FMC, DeviceRecords, AdvancedSettings, IPSecSettings, FTDS2SVPNs
 
 from app.constants import RATE_LIMIT_WAIT_SECONDS
 from app.fmc_utils import delete_p2p_topology_ids, get_topologies_from_ids, get_topology_api, \
     get_ike_settings, set_endpoints_future, get_base_hns_topology, fetch_to_device_p2p_topologies, \
     post_topology_settings, get_topology_endpoints, get_topologies_with_their_endpoints, fetch_to_hns_p2p_topologies
-from app.models import Creds
 from app.utils import get_task_callback_setup, get_dict_diff
 
 
 class FMCSession:
-    def __init__(self, creds: Creds):
+    def __init__(self, creds: OAuth2PasswordRequestForm):
         host, username = creds.username.split(" ", 1)
         self.fmc = FMC(host=host, username=username, password=creds.password, autodeploy=True,
                        file_logging="/tmp/log.txt", domain=None, debug=False, limit=1000, timeout=180,
@@ -28,7 +28,7 @@ class FMCSession:
         self.fmc.uuid = None
         self.hub_device_id = None
         self.hns_topology_id = None
-        self.api_pool = ThreadPoolExecutor(max_workers=8)  # max FMC conn 10
+        self.api_pool = ThreadPoolExecutor(max_workers=8)  # max FMC limit 10
         self.max_topologies = 500
         self.pending_futures = defaultdict(list)
         self.hns_topology = None
@@ -40,7 +40,7 @@ class FMCSession:
     def set_domain(self, domain_id: str) -> None:
         """
         - Set the domain UUID for the FMC session
-        - trigger fetching P2P topologies in background thread.
+        - trigger fetching all topologies in background thread.
 
         :param domain_id: Domain UUID
         """
@@ -52,7 +52,8 @@ class FMCSession:
     def set_hns_topology_id(self, hns_topology_id: str) -> list[dict]:
         """
         - Set the UUID of HNS topology to merge into.
-        - Trigger fetching IKE settings for the p2p topologies containing HNS hub devices in a background thread.
+        - Trigger fetching IKE settings for the p2p topologies containing HNS hub devices as one of their endpoints in
+            a background thread.
 
         :param hns_topology_id: HNS topology UUID
         """
@@ -83,6 +84,11 @@ class FMCSession:
                                            self.fmc)
 
     def get_registered_devices(self) -> list[dict]:
+        """
+        Get list of all devices registered on FMC
+
+        :return: List of device details
+        """
         device_api_response = DeviceRecords(fmc=self.fmc).get()
         devices = device_api_response["items"]
         return devices
@@ -101,9 +107,10 @@ class FMCSession:
 
     def create_hns_topology(self, topology_name: str, p2p_topology_ids: list[str], override: dict[str, Any], hns_topology_id: str) -> dict:
         """
-        Create new Hub and Spoke topology on the device from Point to Point topologies.
+        Create new Hub and Spoke topology on the device from Point to Point topologies if hns topology ID is not provided or merge into existing one.
 
-        :param topology_name:
+        :param hns_topology_id: HNS topology UUID
+        :param topology_name: Name of topology if creating new one
         :param p2p_topology_ids: The UUID list of point to point topologies being merged.
         :param override: The overriding parameter values used for conflicts. Data structure corresponds to the GET
             topology response.
@@ -113,7 +120,7 @@ class FMCSession:
         hns_topology_api = get_topology_api(base_hns_topology, self.fmc)
         hns_topology_id = hns_topology_api.id
 
-        # Must set IKE settings before endpoints to override the default automatic pre-shared key setting
+        # Must set IKE settings before endpoints to override the default automatic pre-shared key setting else FMC API complains
         created_ike_settings = get_ike_settings(self.fmc, hns_topology_id, base_hns_topology)
 
         submit_task, run_callbacks = get_task_callback_setup(self.api_pool)
@@ -136,13 +143,16 @@ class FMCSession:
 
     def deploy(self):
         """
-        Deploy the changes in the FMC configuration.
-        :return:
+        Deploy the changes in the FMC configuration after deleting existing P2P topologies.
         """
         delete_p2p_topology_ids(self.orig_hns_p2p_topology_ids, self.fmc, self.api_pool)
         self.fmc.__exit__()
 
     def fetch_topologies(self) -> None:
+        """
+        Fetch all topologies using parallel connections. It adds the futures to FMC session's pending future list so that
+            related requests can "wait" for completion. (using "/status" endpoint)
+        """
         s2s_topologies = []
         stop_sleep = False
         def sleep_forever():

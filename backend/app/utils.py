@@ -10,6 +10,19 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.constants import BULK_POST_BYTE_LIMIT
 
+ALLOWED_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "localhost:3000",
+    "http://127.0.0.1:3000",
+    "127.0.0.1:3000",
+    "https://spectrum-stages-hills-galaxy.trycloudflare.com",
+    "spectrum-stages-hills-galaxy.trycloudflare.com",
+    "https://technique-programming-try-registered.trycloudflare.com",
+    "technique-programming-try-registered.trycloudflare.com",
+    "https://scale-cos-carries-rpm.trycloudflare.com",
+    "scale-cos-carries-rpm.trycloudflare.com"
+]
+
 
 def enable_cors(app: FastAPI) -> None:
     """
@@ -17,18 +30,7 @@ def enable_cors(app: FastAPI) -> None:
 
     :param app: Main FastAPI _app_
     """
-    origins = [
-        "http://localhost:3000",
-        "localhost:3000",
-        "http://127.0.0.1:3000",
-        "127.0.0.1:3000",
-        "https://spectrum-stages-hills-galaxy.trycloudflare.com",
-        "spectrum-stages-hills-galaxy.trycloudflare.com",
-        "https://technique-programming-try-registered.trycloudflare.com",
-        "technique-programming-try-registered.trycloudflare.com",
-        "https://scale-cos-carries-rpm.trycloudflare.com",
-        "scale-cos-carries-rpm.trycloudflare.com"
-    ]
+    origins = ALLOWED_CORS_ORIGINS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -77,9 +79,19 @@ def get_task_callback_setup(executor: ThreadPoolExecutor) -> tuple[Callable, Cal
     future_to_callback: dict[Future, AnyCallable] = {}
 
     def submit_task(task, *args, callback=lambda _: None, **kwargs):
+        """
+        Used to submit task to a pool of threads and associate with a function to run on trigger
+        :param task: Callable/lambda/function
+        :param args: Arguments to pass to the task while executing
+        :param callback: Function to run on trigger
+        :param kwargs: Keyword arguments to pass to the task
+        """
         future_to_callback[executor.submit(task, *args, **kwargs)] = callback
 
     def run_callbacks():
+        """
+        Wait for tasks to finish and trigger the callbacks
+        """
         for future in as_completed(future_to_callback):
             future_function = future_to_callback[future]
             future_function(future.result())
@@ -89,9 +101,9 @@ def get_task_callback_setup(executor: ThreadPoolExecutor) -> tuple[Callable, Cal
 
 def get_post_data_chunks(data: list[dict]) -> list[dict]:
     """
-    Generator function to split list of items into smaller lists to stay under limit.
-    :param data:
-    :return:
+    Generator function to split list of items into smaller lists to stay under FMC API limit.
+
+    :param data: Data to split
     """
     while data:
         chunk = []
@@ -101,6 +113,15 @@ def get_post_data_chunks(data: list[dict]) -> list[dict]:
 
 
 def get_dict_diff(dicts: list[dict], ignored_keys: set[str]) -> Dict:
+    """
+    Consider the dict/hashmap a tree structure. For the provided tree it returns the subtree whose values are not
+        identical across the trees (i.e. dicts). The value of the leaves of the subtree is the list of unique values
+        found across the trees.
+
+    :param dicts: Trees to search for conflicts
+    :param ignored_keys: Ignore subtrees with certain key values
+    :return: The subtree with conflicting values under the leaf nodes.
+    """
     assert dicts
     res = {}
     for key in dicts[0]:
@@ -120,7 +141,14 @@ def get_dict_diff(dicts: list[dict], ignored_keys: set[str]) -> Dict:
     return res
 
 
-def get_list_value_conflict(values: list) -> Union[None, list[list]]:
+def get_list_value_conflict(values: list[list]) -> Union[None, list[list]]:
+    """
+    Find conflicts among list of _list values_. It merges the lists, removes the duplicates and checks if merged list is
+        different from individual lists.
+
+    :param values: List of listvalues to check
+    :return: Conflicts if found else None
+    """
     union_list = []
     for i in chain.from_iterable(values):
         if i not in union_list:

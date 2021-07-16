@@ -3,6 +3,7 @@
 * Install dependencies using `pip -r requirements.txt`
 * For starting  or debugging, run `main.py`. The server will automatically reload on code modifications.
 * Execute `./recreate.py` to delete the existing topologies and recreate newer ones. Useful for testing.
+* Check if the client URL (usually `http://localhost:3000`) is included in the `ALLOWED_CORS_ORIGINS` constant in `utils.py`.
 
 ## Libraries
 * [FastAPI](https://fastapi.tiangolo.com/tutorial/) is used to build the backend API.

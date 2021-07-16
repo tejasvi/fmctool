@@ -9,7 +9,24 @@ from fmcapi import FMC, AdvancedSettings, FTDS2SVPNs, Endpoints, IKESettings
 
 from app.utils import execute_parallel_tasks
 
-FTD_DEVICE_NAME = "10.10.8.2"
+##################################################
+# Verify the constants before running the script
+##################################################
+
+FMC_PASSWORD = "Cisco@123"
+
+FMC_USER = "api"
+
+FMC_HOST = "10.10.8.4"
+
+IKE_POLICIES = [{"name": "DES-SHA-SHA-LATEST", "id": "0050568C-4A4E-0ed3-0000-000000000404", "type": "IKEv2Policy"}]
+
+FTD_INTERFACE = {"name": "Outside", "id": "0050568C-4A4E-0ed3-0000-021474837881", "type": "PhysicalInterface"}
+
+FTD_DEVICE_ = {"name": "10.10.8.2", "id": "07cfba2c-c2bf-11eb-9e85-c5bee801c0c9", "type": "Device"}
+
+PROTECTED_NETWORKS = {
+    "networks": [{"name": "10P2PObj", "id": "0050568C-4A4E-0ed3-0000-021474838306", "type": "Network"}]}
 
 
 def recreate_test_topologies(fmc, api_pool, count=5, p2p_only=False):
@@ -27,7 +44,7 @@ def recreate_test_topologies(fmc, api_pool, count=5, p2p_only=False):
 
     tasks = [partial(create_topology, fmc, extranet_ips.pop(), f"p2p-topology-{i:03d}", True) for i in range(count)]
     if not p2p_only:
-        tasks.append(lambda: create_topology(fmc, get_random_ips(1).pop(), "test_hns_topology", False))
+        tasks.append(partial(create_topology, fmc, get_random_ips(1).pop(), "test_hns_topology", False))
 
     execute_parallel_tasks(tasks, api_pool)
 
@@ -103,7 +120,7 @@ def delete_all_topologies(fmc: FMC, api_pool: ThreadPoolExecutor, p2p_only=False
     execute_parallel_tasks(delete_tasks, api_pool)
 
 
-def create_topology(fmc, extranet_ip: str, topology_name: str, p2p:bool) -> None:
+def create_topology(fmc, extranet_ip: str, topology_name: str, p2p: bool) -> None:
     """
     Create topology with device and extranet endpoints.
 
@@ -122,7 +139,7 @@ def create_topology(fmc, extranet_ip: str, topology_name: str, p2p:bool) -> None
     create_topology_endpoints(fmc, extranet_ip, topology_api, p2p)
 
 
-def create_topology_endpoints(fmc: FMC, extranet_ip: str, topology_api: FTDS2SVPNs, p2p:bool) -> None:
+def create_topology_endpoints(fmc: FMC, extranet_ip: str, topology_api: FTDS2SVPNs, p2p: bool) -> None:
     """
     Create device and extranet endpoints
 
@@ -131,15 +148,13 @@ def create_topology_endpoints(fmc: FMC, extranet_ip: str, topology_api: FTDS2SVP
     :param extranet_ip: IP of the extranet endpoint
     :param topology_api: Topology API object
     """
-    protected_networks = {
-        "networks": [{"name": "10P2PObj", "id": "0050568C-4A4E-0ed3-0000-021474838306", "type": "Network"}]}
     ftd = {"peerType": "PEER" if p2p else "HUB",
-           "device": {"name": FTD_DEVICE_NAME, "id": "07cfba2c-c2bf-11eb-9e85-c5bee801c0c9", "type": "Device"},
-           "interface": {"name": "Outside", "id": "0050568C-4A4E-0ed3-0000-021474837881", "type": "PhysicalInterface"},
-           "protectedNetworks": protected_networks}
+           "device": FTD_DEVICE_,
+           "interface": FTD_INTERFACE,
+           "protectedNetworks": PROTECTED_NETWORKS}
     extranet = {"peerType": "PEER" if p2p else "SPOKE", "extranet": True,
                 "extranetInfo": {"name": extranet_ip, "ipAddress": extranet_ip},
-                "protectedNetworks": protected_networks}
+                "protectedNetworks": PROTECTED_NETWORKS}
     for device in (extranet, ftd):
         endpoints_api = Endpoints(fmc=fmc, **device)
         endpoints_api.vpn_policy(vpn_id=topology_api.id)
@@ -147,9 +162,15 @@ def create_topology_endpoints(fmc: FMC, extranet_ip: str, topology_api: FTDS2SVP
 
 
 def create_topology_ike_settings(fmc: FMC, topology_api: FTDS2SVPNs):
+    """
+    Create IKE settings
+
+    :param fmc: FMC API object
+    :param topology_api: Topology API object
+    """
     ike_settings = {"authenticationType": "MANUAL_PRE_SHARED_KEY", "enforceHexBasedPreSharedKeyOnly": False,
-                    "manualPreSharedKey": ["Cisco@123-Collab", "Cisco@123-Switching"][randint(0, 1)], "policies": [
-            {"name": "DES-SHA-SHA-LATEST", "id": "0050568C-4A4E-0ed3-0000-000000000404", "type": "IKEv2Policy"}]}
+                    "manualPreSharedKey": ["Cisco@123-Collab", "Cisco@123-Switching"][randint(0, 1)],
+                    "policies": IKE_POLICIES}
 
     ike_settings_api = IKESettings(fmc=fmc, ikeV2Settings=ike_settings,
                                    id=getattr(topology_api, "ikeSettings")["id"])
@@ -177,6 +198,6 @@ def get_random_ips(count: int) -> set[str]:
 if __name__ == "__main__":
     """Delete all topologies and recreate test p2p and hns topologies"""
     with ThreadPoolExecutor(max_workers=8)  as api_pool:
-        with FMC(host="10.10.8.4", username="api", password="Cisco@123", autodeploy=False) as fmc:
+        with FMC(host=FMC_HOST, username=FMC_USER, password=FMC_PASSWORD, autodeploy=False) as fmc:
             fmc.TOO_MANY_CONNECTIONS_TIMEOUT = 5
             recreate_test_topologies(fmc=fmc, api_pool=api_pool, count=5, p2p_only=False)
