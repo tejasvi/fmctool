@@ -1,6 +1,7 @@
 ## Dev setup
 
 * Set `BACKEND_ROOT` to the host address of the backend server (usually `http://localhost:8000`) in `src/utils.tsx`.
+* Install the package dependencies with `npm install`.
 * `npm start` to run the app on [`http://localhost:3000`](http://localhost:3000). _Usually_ it auto-reloads on source file changes.
 * Compared to backend code, frontend code is less modular. Code folding will come handy.
 
@@ -26,3 +27,4 @@
     * `src/pages/Deploy.tsx` page shows the deployment success screen.
 * `src/Components.tsx` contains the generic components.
 * `src/utils.tsx` contains the utility functions.
+* `src/States.tsx` contains the _state_ objects used by the components and pages.
