@@ -4,6 +4,7 @@
 * For starting  or debugging, run `main.py`. The server will automatically reload on code modifications.
 * Execute `./recreate.py` to delete all the existing topologies and recreate newer ones for testing. Make sure the constants specified in it match the FMC configuration.
 * Check if the client URL (usually `http://localhost:3000`) is included in the `ALLOWED_CORS_ORIGINS` constant in `utils.py`.
+* Visit `$SERVER_HOST:$PORT/docs` to get the Swagger API documentation for the routes.
 
 ## Libraries
 * [FastAPI](https://fastapi.tiangolo.com/tutorial/) is used to build the backend API.
